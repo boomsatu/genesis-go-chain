@@ -1,0 +1,51 @@
+
+# Blockchain Node Configuration
+# Production-ready configuration with comprehensive logging and monitoring
+
+network:
+  port: 8080
+  listen_addr: "0.0.0.0"
+  max_peers: 50
+  timeout: 30
+  seed_nodes:
+    - "127.0.0.1:8081"
+    - "127.0.0.1:8082"
+
+rpc:
+  enabled: true
+  port: 8545
+  host: "localhost"
+  cors_origins:
+    - "*"
+  max_connections: 100
+  timeout: 30
+
+mining:
+  enabled: false
+  address: ""
+  threads: 1
+  difficulty: 4
+
+db:
+  path: "./data"
+  type: "leveldb"
+  cache_size: 64      # MB
+  max_open_files: 1000
+  write_buffer: 4     # MB
+
+evm:
+  chain_id: 1337
+  block_gas_limit: 8000000
+  min_gas_price: 1000000000  # 1 Gwei
+
+logging:
+  level: "info"              # debug, info, warning, error
+  output: "both"             # console, file, both
+  file_path: "./logs/blockchain.log"
+  max_size: 100             # MB
+  component: "blockchain-node"
+
+metrics:
+  enabled: true
+  port: 8080
+  path: "/metrics"
