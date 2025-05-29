@@ -1,0 +1,253 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lumina Wallet</title>
+  <link rel="stylesheet" href="styles/popup.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Loading Screen -->
+    <div id="loading" class="screen">
+      <div class="logo">
+        <img src="icons/icon48.png" alt="Lumina Wallet">
+        <h1>Lumina Wallet</h1>
+      </div>
+      <div class="spinner"></div>
+    </div>
+
+    <!-- Setup Screen -->
+    <div id="setup" class="screen hidden">
+      <div class="header">
+        <img src="icons/icon48.png" alt="Lumina Wallet">
+        <h1>Welcome to Lumina</h1>
+        <p>Secure cryptocurrency wallet for Lumina Blockchain</p>
+      </div>
+      <div class="setup-options">
+        <button id="create-wallet" class="btn-primary">Create New Wallet</button>
+        <button id="import-wallet" class="btn-secondary">Import Existing Wallet</button>
+      </div>
+    </div>
+
+    <!-- Create Wallet Screen -->
+    <div id="create-wallet-screen" class="screen hidden">
+      <div class="header">
+        <button id="back-from-create" class="btn-back">←</button>
+        <h2>Create New Wallet</h2>
+      </div>
+      <div class="mnemonic-container">
+        <h3>Your Recovery Phrase</h3>
+        <p class="warning">Write down these 12 words in order. Keep them safe and secret.</p>
+        <div id="mnemonic-display" class="mnemonic-grid"></div>
+        <div class="checkbox-container">
+          <input type="checkbox" id="saved-mnemonic">
+          <label for="saved-mnemonic">I have saved my recovery phrase</label>
+        </div>
+        <button id="confirm-mnemonic" class="btn-primary" disabled>Continue</button>
+      </div>
+    </div>
+
+    <!-- Import Wallet Screen -->
+    <div id="import-wallet-screen" class="screen hidden">
+      <div class="header">
+        <button id="back-from-import" class="btn-back">←</button>
+        <h2>Import Wallet</h2>
+      </div>
+      <div class="import-container">
+        <div class="input-group">
+          <label for="mnemonic-input">Recovery Phrase</label>
+          <textarea id="mnemonic-input" placeholder="Enter your 12-word recovery phrase"></textarea>
+        </div>
+        <div class="input-group">
+          <label for="password-input">Password</label>
+          <input type="password" id="password-input" placeholder="Create password">
+        </div>
+        <div class="input-group">
+          <label for="confirm-password-input">Confirm Password</label>
+          <input type="password" id="confirm-password-input" placeholder="Confirm password">
+        </div>
+        <button id="import-wallet-btn" class="btn-primary">Import Wallet</button>
+      </div>
+    </div>
+
+    <!-- Set Password Screen -->
+    <div id="password-screen" class="screen hidden">
+      <div class="header">
+        <h2>Secure Your Wallet</h2>
+        <p>Create a password to protect your wallet</p>
+      </div>
+      <div class="password-container">
+        <div class="input-group">
+          <label for="new-password">Password</label>
+          <input type="password" id="new-password" placeholder="Create password">
+        </div>
+        <div class="input-group">
+          <label for="confirm-new-password">Confirm Password</label>
+          <input type="password" id="confirm-new-password" placeholder="Confirm password">
+        </div>
+        <button id="set-password" class="btn-primary">Create Wallet</button>
+      </div>
+    </div>
+
+    <!-- Unlock Screen -->
+    <div id="unlock" class="screen hidden">
+      <div class="header">
+        <img src="icons/icon48.png" alt="Lumina Wallet">
+        <h2>Welcome Back</h2>
+      </div>
+      <div class="unlock-container">
+        <div class="input-group">
+          <label for="unlock-password">Password</label>
+          <input type="password" id="unlock-password" placeholder="Enter password">
+        </div>
+        <button id="unlock-wallet" class="btn-primary">Unlock</button>
+      </div>
+    </div>
+
+    <!-- Main Wallet Screen -->
+    <div id="wallet" class="screen hidden">
+      <div class="header">
+        <div class="network-selector">
+          <select id="network-select">
+            <option value="lumina-mainnet">Lumina Mainnet</option>
+            <option value="lumina-testnet">Lumina Testnet</option>
+            <option value="localhost">Localhost</option>
+          </select>
+        </div>
+        <div class="account-info">
+          <div class="account-name">Account 1</div>
+          <div class="account-address" id="account-address">0x...</div>
+        </div>
+        <button id="settings-btn" class="btn-icon">⚙️</button>
+      </div>
+
+      <div class="balance-section">
+        <div class="balance">
+          <span id="balance-amount">0.00</span>
+          <span class="currency">LUM</span>
+        </div>
+        <div class="balance-usd" id="balance-usd">$0.00 USD</div>
+      </div>
+
+      <div class="actions">
+        <button id="send-btn" class="action-btn">
+          <span class="icon">📤</span>
+          <span>Send</span>
+        </button>
+        <button id="receive-btn" class="action-btn">
+          <span class="icon">📥</span>
+          <span>Receive</span>
+        </button>
+        <button id="swap-btn" class="action-btn">
+          <span class="icon">🔄</span>
+          <span>Swap</span>
+        </button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="tokens">Tokens</button>
+        <button class="tab" data-tab="nfts">NFTs</button>
+        <button class="tab" data-tab="activity">Activity</button>
+      </div>
+
+      <div class="tab-content">
+        <div id="tokens-tab" class="tab-panel active">
+          <div class="token-list" id="token-list">
+            <!-- Tokens will be dynamically added here -->
+          </div>
+        </div>
+        <div id="nfts-tab" class="tab-panel hidden">
+          <div class="nft-grid" id="nft-grid">
+            <!-- NFTs will be dynamically added here -->
+          </div>
+        </div>
+        <div id="activity-tab" class="tab-panel hidden">
+          <div class="activity-list" id="activity-list">
+            <!-- Activities will be dynamically added here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Send Screen -->
+    <div id="send-screen" class="screen hidden">
+      <div class="header">
+        <button id="back-from-send" class="btn-back">←</button>
+        <h2>Send Tokens</h2>
+      </div>
+      <div class="send-form">
+        <div class="input-group">
+          <label for="send-to">To</label>
+          <input type="text" id="send-to" placeholder="0x... or ENS name">
+        </div>
+        <div class="input-group">
+          <label for="send-amount">Amount</label>
+          <input type="number" id="send-amount" placeholder="0.0">
+          <select id="send-token">
+            <option value="LUM">LUM</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label for="gas-fee">Gas Fee</label>
+          <div class="gas-options">
+            <button class="gas-option" data-speed="slow">Slow</button>
+            <button class="gas-option active" data-speed="standard">Standard</button>
+            <button class="gas-option" data-speed="fast">Fast</button>
+          </div>
+        </div>
+        <button id="send-transaction" class="btn-primary">Send</button>
+      </div>
+    </div>
+
+    <!-- Receive Screen -->
+    <div id="receive-screen" class="screen hidden">
+      <div class="header">
+        <button id="back-from-receive" class="btn-back">←</button>
+        <h2>Receive Tokens</h2>
+      </div>
+      <div class="receive-info">
+        <div class="qr-code" id="qr-code">
+          <!-- QR code will be generated here -->
+        </div>
+        <div class="address-display">
+          <p>Your Lumina Address</p>
+          <div class="address-box">
+            <span id="receive-address">0x...</span>
+            <button id="copy-address" class="btn-copy">📋</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings-screen" class="screen hidden">
+      <div class="header">
+        <button id="back-from-settings" class="btn-back">←</button>
+        <h2>Settings</h2>
+      </div>
+      <div class="settings-list">
+        <div class="setting-item">
+          <span>Show Recovery Phrase</span>
+          <button id="show-mnemonic" class="btn-secondary">View</button>
+        </div>
+        <div class="setting-item">
+          <span>Change Password</span>
+          <button id="change-password" class="btn-secondary">Change</button>
+        </div>
+        <div class="setting-item">
+          <span>Connected Sites</span>
+          <button id="connected-sites" class="btn-secondary">Manage</button>
+        </div>
+        <div class="setting-item">
+          <span>Reset Wallet</span>
+          <button id="reset-wallet" class="btn-danger">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/popup.js"></script>
+</body>
+</html>
