@@ -7,35 +7,33 @@ import (
 	"math/big"
 	"sync"
 
+	"blockchain-node/crypto"
 	"blockchain-node/storage"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // StateDB manages the world state using Patricia Merkle Trie structure
 type StateDB struct {
 	db       storage.Database
-	stateRoot common.Hash
-	accounts  map[common.Address]*Account // In-memory cache
-	storage   map[common.Address]map[common.Hash]common.Hash // Contract storage
+	stateRoot crypto.Hash
+	accounts  map[crypto.Address]*Account // In-memory cache
+	storage   map[crypto.Address]map[crypto.Hash]crypto.Hash // Contract storage
 	logs      []*Log
 	mu        sync.RWMutex
 }
 
 // NewStateDB creates a new StateDB instance
-func NewStateDB(db storage.Database, stateRoot common.Hash) *StateDB {
+func NewStateDB(db storage.Database, stateRoot crypto.Hash) *StateDB {
 	return &StateDB{
 		db:        db,
 		stateRoot: stateRoot,
-		accounts:  make(map[common.Address]*Account),
-		storage:   make(map[common.Address]map[common.Hash]common.Hash),
+		accounts:  make(map[crypto.Address]*Account),
+		storage:   make(map[crypto.Address]map[crypto.Hash]crypto.Hash),
 		logs:      []*Log{},
 	}
 }
 
 // GetAccount retrieves an account from the state
-func (sdb *StateDB) GetAccount(addr common.Address) *Account {
+func (sdb *StateDB) GetAccount(addr crypto.Address) *Account {
 	sdb.mu.RLock()
 	defer sdb.mu.RUnlock()
 
@@ -62,7 +60,7 @@ func (sdb *StateDB) GetAccount(addr common.Address) *Account {
 }
 
 // SetAccount updates an account in the state
-func (sdb *StateDB) SetAccount(addr common.Address, account *Account) {
+func (sdb *StateDB) SetAccount(addr crypto.Address, account *Account) {
 	sdb.mu.Lock()
 	defer sdb.mu.Unlock()
 
@@ -71,7 +69,7 @@ func (sdb *StateDB) SetAccount(addr common.Address, account *Account) {
 }
 
 // GetBalance returns the balance of an account
-func (sdb *StateDB) GetBalance(addr common.Address) *big.Int {
+func (sdb *StateDB) GetBalance(addr crypto.Address) *big.Int {
 	account := sdb.GetAccount(addr)
 	if account == nil {
 		return big.NewInt(0)
@@ -80,7 +78,7 @@ func (sdb *StateDB) GetBalance(addr common.Address) *big.Int {
 }
 
 // SetBalance updates the balance of an account
-func (sdb *StateDB) SetBalance(addr common.Address, balance *big.Int) {
+func (sdb *StateDB) SetBalance(addr crypto.Address, balance *big.Int) {
 	account := sdb.GetAccount(addr)
 	if account == nil {
 		account = &Account{
@@ -93,7 +91,7 @@ func (sdb *StateDB) SetBalance(addr common.Address, balance *big.Int) {
 }
 
 // GetNonce returns the nonce of an account
-func (sdb *StateDB) GetNonce(addr common.Address) uint64 {
+func (sdb *StateDB) GetNonce(addr crypto.Address) uint64 {
 	account := sdb.GetAccount(addr)
 	if account == nil {
 		return 0
@@ -102,7 +100,7 @@ func (sdb *StateDB) GetNonce(addr common.Address) uint64 {
 }
 
 // SetNonce updates the nonce of an account
-func (sdb *StateDB) SetNonce(addr common.Address, nonce uint64) {
+func (sdb *StateDB) SetNonce(addr crypto.Address, nonce uint64) {
 	account := sdb.GetAccount(addr)
 	if account == nil {
 		account = &Account{
@@ -115,13 +113,13 @@ func (sdb *StateDB) SetNonce(addr common.Address, nonce uint64) {
 }
 
 // GetCode returns the code of a contract account
-func (sdb *StateDB) GetCode(addr common.Address) []byte {
+func (sdb *StateDB) GetCode(addr crypto.Address) []byte {
 	account := sdb.GetAccount(addr)
 	if account == nil {
 		return nil
 	}
 
-	if account.CodeHash == (common.Hash{}) {
+	if account.CodeHash.IsZero() {
 		return nil
 	}
 
@@ -136,7 +134,7 @@ func (sdb *StateDB) GetCode(addr common.Address) []byte {
 }
 
 // SetCode updates the code of a contract account
-func (sdb *StateDB) SetCode(addr common.Address, code []byte) {
+func (sdb *StateDB) SetCode(addr crypto.Address, code []byte) {
 	account := sdb.GetAccount(addr)
 	if account == nil {
 		account = &Account{
@@ -157,7 +155,7 @@ func (sdb *StateDB) SetCode(addr common.Address, code []byte) {
 }
 
 // GetStorage returns a storage value for a contract
-func (sdb *StateDB) GetStorage(addr common.Address, key common.Hash) common.Hash {
+func (sdb *StateDB) GetStorage(addr crypto.Address, key crypto.Hash) crypto.Hash {
 	sdb.mu.RLock()
 	defer sdb.mu.RUnlock()
 
@@ -174,14 +172,14 @@ func (sdb *StateDB) GetStorage(addr common.Address, key common.Hash) common.Hash
 	
 	data, err := sdb.db.Get(dbKey)
 	if err != nil {
-		return common.Hash{}
+		return crypto.Hash{}
 	}
 
-	value := common.BytesToHash(data)
+	value := crypto.BytesToHash(data)
 
 	// Cache the value
 	if sdb.storage[addr] == nil {
-		sdb.storage[addr] = make(map[common.Hash]common.Hash)
+		sdb.storage[addr] = make(map[crypto.Hash]crypto.Hash)
 	}
 	sdb.storage[addr][key] = value
 
@@ -189,13 +187,13 @@ func (sdb *StateDB) GetStorage(addr common.Address, key common.Hash) common.Hash
 }
 
 // SetStorage updates a storage value for a contract
-func (sdb *StateDB) SetStorage(addr common.Address, key common.Hash, value common.Hash) {
+func (sdb *StateDB) SetStorage(addr crypto.Address, key crypto.Hash, value crypto.Hash) {
 	sdb.mu.Lock()
 	defer sdb.mu.Unlock()
 
 	// Update cache
 	if sdb.storage[addr] == nil {
-		sdb.storage[addr] = make(map[common.Hash]common.Hash)
+		sdb.storage[addr] = make(map[crypto.Hash]crypto.Hash)
 	}
 	sdb.storage[addr][key] = value
 }
@@ -217,7 +215,7 @@ func (sdb *StateDB) GetLogs() []*Log {
 }
 
 // Commit commits all changes to the database and returns the new state root
-func (sdb *StateDB) Commit() (common.Hash, error) {
+func (sdb *StateDB) Commit() (crypto.Hash, error) {
 	sdb.mu.Lock()
 	defer sdb.mu.Unlock()
 
@@ -228,12 +226,12 @@ func (sdb *StateDB) Commit() (common.Hash, error) {
 	for addr, account := range sdb.accounts {
 		data, err := json.Marshal(account)
 		if err != nil {
-			return common.Hash{}, fmt.Errorf("failed to marshal account: %v", err)
+			return crypto.Hash{}, fmt.Errorf("failed to marshal account: %v", err)
 		}
 
 		key := append([]byte("account-"), addr.Bytes()...)
 		if err := batch.Put(key, data); err != nil {
-			return common.Hash{}, fmt.Errorf("failed to put account: %v", err)
+			return crypto.Hash{}, fmt.Errorf("failed to put account: %v", err)
 		}
 	}
 
@@ -244,14 +242,14 @@ func (sdb *StateDB) Commit() (common.Hash, error) {
 			dbKey = append(dbKey, key.Bytes()...)
 			
 			if err := batch.Put(dbKey, value.Bytes()); err != nil {
-				return common.Hash{}, fmt.Errorf("failed to put storage: %v", err)
+				return crypto.Hash{}, fmt.Errorf("failed to put storage: %v", err)
 			}
 		}
 	}
 
 	// Write the batch
 	if err := batch.Write(); err != nil {
-		return common.Hash{}, fmt.Errorf("failed to write batch: %v", err)
+		return crypto.Hash{}, fmt.Errorf("failed to write batch: %v", err)
 	}
 
 	// Calculate new state root
@@ -259,15 +257,15 @@ func (sdb *StateDB) Commit() (common.Hash, error) {
 	sdb.stateRoot = newStateRoot
 
 	// Clear caches
-	sdb.accounts = make(map[common.Address]*Account)
-	sdb.storage = make(map[common.Address]map[common.Hash]common.Hash)
+	sdb.accounts = make(map[crypto.Address]*Account)
+	sdb.storage = make(map[crypto.Address]map[crypto.Hash]crypto.Hash)
 	sdb.logs = []*Log{}
 
 	return newStateRoot, nil
 }
 
 // calculateStateRoot calculates the state root using a simple merkle tree
-func (sdb *StateDB) calculateStateRoot() common.Hash {
+func (sdb *StateDB) calculateStateRoot() crypto.Hash {
 	// Simple implementation: hash all account addresses and balances
 	// In a real implementation, this would be a proper Patricia Merkle Trie
 	
@@ -291,7 +289,7 @@ func (sdb *StateDB) calculateStateRoot() common.Hash {
 	}
 
 	if len(data) == 0 {
-		return common.Hash{}
+		return crypto.Hash{}
 	}
 
 	return crypto.Keccak256Hash(data)
@@ -305,8 +303,8 @@ func (sdb *StateDB) Copy() *StateDB {
 	copy := &StateDB{
 		db:        sdb.db,
 		stateRoot: sdb.stateRoot,
-		accounts:  make(map[common.Address]*Account),
-		storage:   make(map[common.Address]map[common.Hash]common.Hash),
+		accounts:  make(map[crypto.Address]*Account),
+		storage:   make(map[crypto.Address]map[crypto.Hash]crypto.Hash),
 		logs:      make([]*Log, len(sdb.logs)),
 	}
 
@@ -322,7 +320,7 @@ func (sdb *StateDB) Copy() *StateDB {
 
 	// Copy storage
 	for addr, addrStorage := range sdb.storage {
-		copy.storage[addr] = make(map[common.Hash]common.Hash)
+		copy.storage[addr] = make(map[crypto.Hash]crypto.Hash)
 		for key, value := range addrStorage {
 			copy.storage[addr][key] = value
 		}
@@ -332,7 +330,7 @@ func (sdb *StateDB) Copy() *StateDB {
 	for i, log := range sdb.logs {
 		copy.logs[i] = &Log{
 			Address:     log.Address,
-			Topics:      append([]common.Hash{}, log.Topics...),
+			Topics:      append([]crypto.Hash{}, log.Topics...),
 			Data:        append([]byte{}, log.Data...),
 			BlockNumber: log.BlockNumber,
 			TxHash:      log.TxHash,
@@ -347,14 +345,14 @@ func (sdb *StateDB) Copy() *StateDB {
 }
 
 // GetStateRoot returns the current state root
-func (sdb *StateDB) GetStateRoot() common.Hash {
+func (sdb *StateDB) GetStateRoot() crypto.Hash {
 	sdb.mu.RLock()
 	defer sdb.mu.RUnlock()
 	return sdb.stateRoot
 }
 
 // Empty checks if an account is empty (non-existent or with zero nonce, balance, and no code)
-func (sdb *StateDB) Empty(addr common.Address) bool {
+func (sdb *StateDB) Empty(addr crypto.Address) bool {
 	account := sdb.GetAccount(addr)
 	if account == nil {
 		return true
@@ -362,11 +360,11 @@ func (sdb *StateDB) Empty(addr common.Address) bool {
 
 	return account.Nonce == 0 &&
 		account.Balance.Sign() == 0 &&
-		account.CodeHash == (common.Hash{})
+		account.CodeHash.IsZero()
 }
 
 // Exist checks if an account exists in the state
-func (sdb *StateDB) Exist(addr common.Address) bool {
+func (sdb *StateDB) Exist(addr crypto.Address) bool {
 	return sdb.GetAccount(addr) != nil
 }
 

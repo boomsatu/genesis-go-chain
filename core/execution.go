@@ -7,8 +7,6 @@ import (
 	"math/big"
 
 	"blockchain-node/crypto"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 var (
@@ -36,7 +34,7 @@ type ExecutionResult struct {
 	GasUsed         uint64
 	Status          uint64 // 1 for success, 0 for failure
 	Logs            []*Log
-	ContractAddress *common.Address // For contract creation
+	ContractAddress *crypto.Address // For contract creation
 	Error           error
 }
 
@@ -81,7 +79,7 @@ func (ee *ExecutionEngine) ExecuteTransaction(tx *Transaction, header *BlockHead
 	// Start execution
 	gasUsed := uint64(21000) // Base gas cost
 	logs := []*Log{}
-	var contractAddress *common.Address
+	var contractAddress *crypto.Address
 
 	// Deduct gas cost from sender
 	senderAccount.Balance.Sub(senderAccount.Balance, gasCost)
@@ -182,13 +180,13 @@ func (ee *ExecutionEngine) validateSignature(tx *Transaction) error {
 	signature[64] = byte(tx.V.Uint64())
 
 	// Recover address from signature
-	recoveredAddr, err := crypto.RecoverAddress(hash, signature)
+	recoveredAddr, err := crypto.RecoverAddressFunc(hash, signature)
 	if err != nil {
 		return ErrInvalidSignature
 	}
 
 	// Check if recovered address matches the from address
-	if recoveredAddr != tx.From {
+	if !recoveredAddr.Equal(tx.From) {
 		return ErrInvalidSignature
 	}
 
@@ -196,11 +194,11 @@ func (ee *ExecutionEngine) validateSignature(tx *Transaction) error {
 }
 
 // generateContractAddress generates a contract address from sender and nonce
-func (ee *ExecutionEngine) generateContractAddress(sender common.Address, nonce uint64) common.Address {
+func (ee *ExecutionEngine) generateContractAddress(sender crypto.Address, nonce uint64) crypto.Address {
 	// Simple implementation: hash(sender + nonce)
 	data := append(sender.Bytes(), big.NewInt(int64(nonce)).Bytes()...)
-	hash := common.BytesToHash(crypto.Keccak256(data))
-	var addr common.Address
+	hash := crypto.BytesToHash(crypto.Keccak256(data))
+	var addr crypto.Address
 	copy(addr[:], hash[12:])
 	return addr
 }
@@ -211,7 +209,7 @@ type contractExecutionResult struct {
 }
 
 // executeContractCreation executes contract creation logic
-func (ee *ExecutionEngine) executeContractCreation(tx *Transaction, contractAddr common.Address, gasUsed *uint64) (*contractExecutionResult, error) {
+func (ee *ExecutionEngine) executeContractCreation(tx *Transaction, contractAddr crypto.Address, gasUsed *uint64) (*contractExecutionResult, error) {
 	// Custom contract creation logic
 	// For this implementation, we'll use a simple interpretation of the data field
 	
@@ -225,7 +223,7 @@ func (ee *ExecutionEngine) executeContractCreation(tx *Transaction, contractAddr
 	// Create a log for contract creation
 	log := &Log{
 		Address: contractAddr,
-		Topics:  []common.Hash{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")}, // Contract created
+		Topics:  []crypto.Hash{crypto.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")}, // Contract created
 		Data:    tx.Data,
 	}
 
@@ -235,7 +233,7 @@ func (ee *ExecutionEngine) executeContractCreation(tx *Transaction, contractAddr
 }
 
 // executeContractCall executes contract call logic
-func (ee *ExecutionEngine) executeContractCall(tx *Transaction, contractAddr common.Address, gasUsed *uint64) (*contractExecutionResult, error) {
+func (ee *ExecutionEngine) executeContractCall(tx *Transaction, contractAddr crypto.Address, gasUsed *uint64) (*contractExecutionResult, error) {
 	// Custom contract call logic
 	// For this implementation, we'll use a simple interpretation system
 	
@@ -252,7 +250,7 @@ func (ee *ExecutionEngine) executeContractCall(tx *Transaction, contractAddr com
 		selector := tx.Data[:4]
 		
 		// Simple function implementations
-		switch common.BytesToHash(selector).Hex() {
+		switch crypto.BytesToHash(selector).Hex() {
 		case "0xa9059cbb": // transfer(address,uint256)
 			return ee.executeTransfer(tx, contractAddr, gasUsed)
 		case "0x70a08231": // balanceOf(address)
@@ -261,7 +259,7 @@ func (ee *ExecutionEngine) executeContractCall(tx *Transaction, contractAddr com
 			// Unknown function, just create a generic log
 			log := &Log{
 				Address: contractAddr,
-				Topics:  []common.Hash{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")}, // Function called
+				Topics:  []crypto.Hash{crypto.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")}, // Function called
 				Data:    tx.Data,
 			}
 			return &contractExecutionResult{logs: []*Log{log}}, nil
@@ -272,7 +270,7 @@ func (ee *ExecutionEngine) executeContractCall(tx *Transaction, contractAddr com
 }
 
 // executeTransfer executes a token transfer function
-func (ee *ExecutionEngine) executeTransfer(tx *Transaction, contractAddr common.Address, gasUsed *uint64) (*contractExecutionResult, error) {
+func (ee *ExecutionEngine) executeTransfer(tx *Transaction, contractAddr crypto.Address, gasUsed *uint64) (*contractExecutionResult, error) {
 	*gasUsed += 5000
 
 	if *gasUsed > tx.GasLimit {
@@ -282,9 +280,9 @@ func (ee *ExecutionEngine) executeTransfer(tx *Transaction, contractAddr common.
 	// Create transfer event log
 	log := &Log{
 		Address: contractAddr,
-		Topics: []common.Hash{
-			common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"), // Transfer event
-			common.BytesToHash(tx.From.Bytes()),                                                    // from
+		Topics: []crypto.Hash{
+			crypto.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"), // Transfer event
+			crypto.BytesToHash(tx.From.Bytes()),                                                    // from
 		},
 		Data: tx.Data[4:], // Parameters
 	}
@@ -293,7 +291,7 @@ func (ee *ExecutionEngine) executeTransfer(tx *Transaction, contractAddr common.
 }
 
 // executeBalanceOf executes a balance query function
-func (ee *ExecutionEngine) executeBalanceOf(tx *Transaction, contractAddr common.Address, gasUsed *uint64) (*contractExecutionResult, error) {
+func (ee *ExecutionEngine) executeBalanceOf(tx *Transaction, contractAddr crypto.Address, gasUsed *uint64) (*contractExecutionResult, error) {
 	*gasUsed += 400
 
 	if *gasUsed > tx.GasLimit {

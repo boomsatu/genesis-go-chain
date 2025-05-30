@@ -13,11 +13,10 @@ import (
 
 	"blockchain-node/config"
 	"blockchain-node/core"
+	"blockchain-node/crypto"
 	"blockchain-node/logger"
 	"blockchain-node/mempool"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/gorilla/mux"
 )
 
@@ -281,7 +280,7 @@ func (s *Server) registerMethods() {
 
 func (s *Server) ethBlockNumber(params interface{}) (interface{}, error) {
 	blockNumber := s.blockchain.GetBlockNumber()
-	return hexutil.EncodeBig(blockNumber), nil
+	return crypto.EncodeBig(blockNumber), nil
 }
 
 func (s *Server) ethGetBalance(params interface{}) (interface{}, error) {
@@ -295,12 +294,12 @@ func (s *Server) ethGetBalance(params interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("invalid address parameter")
 	}
 
-	address := common.HexToAddress(addressStr)
+	address := crypto.HexToAddress(addressStr)
 	
 	// For now, return zero balance (implement with state DB integration)
 	balance := big.NewInt(0)
 	
-	return hexutil.EncodeBig(balance), nil
+	return crypto.EncodeBig(balance), nil
 }
 
 func (s *Server) ethGetTransactionCount(params interface{}) (interface{}, error) {
@@ -314,7 +313,7 @@ func (s *Server) ethGetTransactionCount(params interface{}) (interface{}, error)
 		return nil, fmt.Errorf("invalid address parameter")
 	}
 
-	address := common.HexToAddress(addressStr)
+	address := crypto.HexToAddress(addressStr)
 	
 	// For now, return zero nonce (implement with state DB integration)
 	nonce := uint64(0)
@@ -323,7 +322,7 @@ func (s *Server) ethGetTransactionCount(params interface{}) (interface{}, error)
 	pendingTxs := s.mempool.GetTransactionsByFrom(address)
 	nonce += uint64(len(pendingTxs))
 	
-	return hexutil.EncodeUint64(nonce), nil
+	return crypto.EncodeUint64(nonce), nil
 }
 
 func (s *Server) ethSendRawTransaction(params interface{}) (interface{}, error) {
@@ -339,7 +338,7 @@ func (s *Server) ethSendRawTransaction(params interface{}) (interface{}, error) 
 
 	// For now, return a mock transaction hash
 	// In a real implementation, decode the transaction and add to mempool
-	txHash := common.HexToHash(fmt.Sprintf("0x%x", time.Now().UnixNano()))
+	txHash := crypto.HexToHash(fmt.Sprintf("0x%x", time.Now().UnixNano()))
 	
 	s.logger.Info("Raw transaction received", "data", txDataStr, "hash", txHash.Hex())
 	
@@ -357,7 +356,7 @@ func (s *Server) ethGetBlockByHash(params interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("invalid hash parameter")
 	}
 
-	hash := common.HexToHash(hashStr)
+	hash := crypto.HexToHash(hashStr)
 	block, err := s.blockchain.GetBlockByHash(hash)
 	if err != nil {
 		return nil, nil // Return null for non-existent blocks
@@ -384,7 +383,7 @@ func (s *Server) ethGetBlockByNumber(params interface{}) (interface{}, error) {
 			blockNumber = s.blockchain.GetBlockNumber()
 		} else {
 			var err error
-			blockNumber, err = hexutil.DecodeBig(v)
+			blockNumber, err = crypto.DecodeBig(v)
 			if err != nil {
 				return nil, fmt.Errorf("invalid block number: %v", err)
 			}
@@ -414,7 +413,7 @@ func (s *Server) ethGetTransactionByHash(params interface{}) (interface{}, error
 		return nil, fmt.Errorf("invalid hash parameter")
 	}
 
-	hash := common.HexToHash(hashStr)
+	hash := crypto.HexToHash(hashStr)
 	
 	// Check mempool first
 	if tx := s.mempool.GetTransaction(hash); tx != nil {
@@ -449,17 +448,17 @@ func (s *Server) ethCall(params interface{}) (interface{}, error) {
 
 func (s *Server) ethEstimateGas(params interface{}) (interface{}, error) {
 	// Return default gas estimate
-	return hexutil.EncodeUint64(21000), nil
+	return crypto.EncodeUint64(21000), nil
 }
 
 func (s *Server) ethGasPrice(params interface{}) (interface{}, error) {
 	gasPrice := big.NewInt(1000000000) // 1 Gwei
-	return hexutil.EncodeBig(gasPrice), nil
+	return crypto.EncodeBig(gasPrice), nil
 }
 
 func (s *Server) ethChainId(params interface{}) (interface{}, error) {
 	chainId := big.NewInt(1337) // Default chain ID
-	return hexutil.EncodeBig(chainId), nil
+	return crypto.EncodeBig(chainId), nil
 }
 
 func (s *Server) netVersion(params interface{}) (interface{}, error) {
@@ -471,7 +470,7 @@ func (s *Server) netListening(params interface{}) (interface{}, error) {
 }
 
 func (s *Server) netPeerCount(params interface{}) (interface{}, error) {
-	return hexutil.EncodeUint64(0), nil // TODO: Get actual peer count
+	return crypto.EncodeUint64(0), nil // TODO: Get actual peer count
 }
 
 func (s *Server) luminaGetMempoolSize(params interface{}) (interface{}, error) {
@@ -491,10 +490,10 @@ func (s *Server) luminaGetStats(params interface{}) (interface{}, error) {
 
 func (s *Server) formatBlock(block *core.Block) map[string]interface{} {
 	return map[string]interface{}{
-		"number":           hexutil.EncodeBig(block.Header.Number),
+		"number":           crypto.EncodeBig(block.Header.Number),
 		"hash":             block.Hash.Hex(),
 		"parentHash":       block.Header.PreviousHash.Hex(),
-		"nonce":            hexutil.EncodeUint64(block.Header.Nonce),
+		"nonce":            crypto.EncodeUint64(block.Header.Nonce),
 		"mixHash":          "0x0000000000000000000000000000000000000000000000000000000000000000",
 		"sha3Uncles":       "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
 		"logsBloom":        "0x" + string(block.Header.LogsBloom[:]),
@@ -502,19 +501,19 @@ func (s *Server) formatBlock(block *core.Block) map[string]interface{} {
 		"stateRoot":        block.Header.StateRoot.Hex(),
 		"receiptsRoot":     block.Header.ReceiptsRoot.Hex(),
 		"miner":            block.Header.Coinbase.Hex(),
-		"difficulty":       hexutil.EncodeBig(block.Header.Difficulty),
-		"totalDifficulty":  hexutil.EncodeBig(block.Header.Difficulty), // Simplified
-		"extraData":        hexutil.Encode(block.Header.ExtraData),
-		"size":             hexutil.EncodeUint64(1000), // Estimated
-		"gasLimit":         hexutil.EncodeUint64(block.Header.GasLimit),
-		"gasUsed":          hexutil.EncodeUint64(block.Header.GasUsed),
-		"timestamp":        hexutil.EncodeUint64(block.Header.Timestamp),
+		"difficulty":       crypto.EncodeBig(block.Header.Difficulty),
+		"totalDifficulty":  crypto.EncodeBig(block.Header.Difficulty), // Simplified
+		"extraData":        crypto.Encode(block.Header.ExtraData),
+		"size":             crypto.EncodeUint64(1000), // Estimated
+		"gasLimit":         crypto.EncodeUint64(block.Header.GasLimit),
+		"gasUsed":          crypto.EncodeUint64(block.Header.GasUsed),
+		"timestamp":        crypto.EncodeUint64(block.Header.Timestamp),
 		"transactions":     s.formatTransactions(block.Transactions, &block.Hash),
 		"uncles":           []string{},
 	}
 }
 
-func (s *Server) formatTransactions(txs []*core.Transaction, blockHash *common.Hash) []interface{} {
+func (s *Server) formatTransactions(txs []*core.Transaction, blockHash *crypto.Hash) []interface{} {
 	result := make([]interface{}, len(txs))
 	for i, tx := range txs {
 		result[i] = s.formatTransaction(tx, blockHash, uint64(i))
@@ -522,22 +521,22 @@ func (s *Server) formatTransactions(txs []*core.Transaction, blockHash *common.H
 	return result
 }
 
-func (s *Server) formatTransaction(tx *core.Transaction, blockHash *common.Hash, index uint64) map[string]interface{} {
+func (s *Server) formatTransaction(tx *core.Transaction, blockHash *crypto.Hash, index uint64) map[string]interface{} {
 	result := map[string]interface{}{
 		"hash":             tx.Hash.Hex(),
-		"nonce":            hexutil.EncodeUint64(tx.Nonce),
+		"nonce":            crypto.EncodeUint64(tx.Nonce),
 		"blockHash":        nil,
 		"blockNumber":      nil,
 		"transactionIndex": nil,
 		"from":             tx.From.Hex(),
 		"to":               nil,
-		"value":            hexutil.EncodeBig(tx.Value),
-		"gasPrice":         hexutil.EncodeBig(tx.GasPrice),
-		"gas":              hexutil.EncodeUint64(tx.GasLimit),
-		"input":            hexutil.Encode(tx.Data),
-		"v":                hexutil.EncodeBig(tx.V),
-		"r":                hexutil.EncodeBig(tx.R),
-		"s":                hexutil.EncodeBig(tx.S),
+		"value":            crypto.EncodeBig(tx.Value),
+		"gasPrice":         crypto.EncodeBig(tx.GasPrice),
+		"gas":              crypto.EncodeUint64(tx.GasLimit),
+		"input":            crypto.Encode(tx.Data),
+		"v":                crypto.EncodeBig(tx.V),
+		"r":                crypto.EncodeBig(tx.R),
+		"s":                crypto.EncodeBig(tx.S),
 	}
 
 	if tx.To != nil {
@@ -546,7 +545,7 @@ func (s *Server) formatTransaction(tx *core.Transaction, blockHash *common.Hash,
 
 	if blockHash != nil {
 		result["blockHash"] = blockHash.Hex()
-		result["transactionIndex"] = hexutil.EncodeUint64(index)
+		result["transactionIndex"] = crypto.EncodeUint64(index)
 		// Block number would need to be looked up
 	}
 

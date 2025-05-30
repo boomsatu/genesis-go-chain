@@ -5,23 +5,22 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"blockchain-node/crypto"
 )
 
 // Block represents a block in the blockchain
 type Block struct {
 	Header       *BlockHeader   `json:"header"`
 	Transactions []*Transaction `json:"transactions"`
-	Hash         common.Hash    `json:"hash"`
+	Hash         crypto.Hash    `json:"hash"`
 }
 
 // BlockHeader represents the header of a block
 type BlockHeader struct {
-	PreviousHash     common.Hash    `json:"previousHash"`
-	StateRoot        common.Hash    `json:"stateRoot"`
-	TransactionsRoot common.Hash    `json:"transactionsRoot"`
-	ReceiptsRoot     common.Hash    `json:"receiptsRoot"`
+	PreviousHash     crypto.Hash    `json:"previousHash"`
+	StateRoot        crypto.Hash    `json:"stateRoot"`
+	TransactionsRoot crypto.Hash    `json:"transactionsRoot"`
+	ReceiptsRoot     crypto.Hash    `json:"receiptsRoot"`
 	LogsBloom        [256]byte      `json:"logsBloom"`
 	Number           *big.Int       `json:"number"`
 	GasLimit         uint64         `json:"gasLimit"`
@@ -29,49 +28,49 @@ type BlockHeader struct {
 	Timestamp        uint64         `json:"timestamp"`
 	Nonce            uint64         `json:"nonce"`
 	Difficulty       *big.Int       `json:"difficulty"`
-	Coinbase         common.Address `json:"coinbase"`
+	Coinbase         crypto.Address `json:"coinbase"`
 	ExtraData        []byte         `json:"extraData"`
 }
 
 // Transaction represents a transaction
 type Transaction struct {
-	Nonce    uint64         `json:"nonce"`
-	GasPrice *big.Int       `json:"gasPrice"`
-	GasLimit uint64         `json:"gasLimit"`
-	To       *common.Address `json:"to"` // nil means contract creation
-	Value    *big.Int       `json:"value"`
-	Data     []byte         `json:"data"`
-	V        *big.Int       `json:"v"`
-	R        *big.Int       `json:"r"`
-	S        *big.Int       `json:"s"`
-	Hash     common.Hash    `json:"hash"`
-	From     common.Address `json:"from"`
+	Nonce    uint64          `json:"nonce"`
+	GasPrice *big.Int        `json:"gasPrice"`
+	GasLimit uint64          `json:"gasLimit"`
+	To       *crypto.Address `json:"to"` // nil means contract creation
+	Value    *big.Int        `json:"value"`
+	Data     []byte          `json:"data"`
+	V        *big.Int        `json:"v"`
+	R        *big.Int        `json:"r"`
+	S        *big.Int        `json:"s"`
+	Hash     crypto.Hash     `json:"hash"`
+	From     crypto.Address  `json:"from"`
 }
 
 // TransactionReceipt represents the receipt of a transaction
 type TransactionReceipt struct {
-	TransactionHash   common.Hash    `json:"transactionHash"`
-	TransactionIndex  uint64         `json:"transactionIndex"`
-	BlockHash         common.Hash    `json:"blockHash"`
-	BlockNumber       *big.Int       `json:"blockNumber"`
-	From              common.Address `json:"from"`
-	To                *common.Address `json:"to"`
-	GasUsed           uint64         `json:"gasUsed"`
-	CumulativeGasUsed uint64         `json:"cumulativeGasUsed"`
-	ContractAddress   *common.Address `json:"contractAddress"`
-	Logs              []*Log         `json:"logs"`
-	Status            uint64         `json:"status"` // 0 = failure, 1 = success
+	TransactionHash   crypto.Hash     `json:"transactionHash"`
+	TransactionIndex  uint64          `json:"transactionIndex"`
+	BlockHash         crypto.Hash     `json:"blockHash"`
+	BlockNumber       *big.Int        `json:"blockNumber"`
+	From              crypto.Address  `json:"from"`
+	To                *crypto.Address `json:"to"`
+	GasUsed           uint64          `json:"gasUsed"`
+	CumulativeGasUsed uint64          `json:"cumulativeGasUsed"`
+	ContractAddress   *crypto.Address `json:"contractAddress"`
+	Logs              []*Log          `json:"logs"`
+	Status            uint64          `json:"status"` // 0 = failure, 1 = success
 }
 
 // Log represents an event log
 type Log struct {
-	Address     common.Address `json:"address"`
-	Topics      []common.Hash  `json:"topics"`
+	Address     crypto.Address `json:"address"`
+	Topics      []crypto.Hash  `json:"topics"`
 	Data        []byte         `json:"data"`
 	BlockNumber uint64         `json:"blockNumber"`
-	TxHash      common.Hash    `json:"transactionHash"`
+	TxHash      crypto.Hash    `json:"transactionHash"`
 	TxIndex     uint           `json:"transactionIndex"`
-	BlockHash   common.Hash    `json:"blockHash"`
+	BlockHash   crypto.Hash    `json:"blockHash"`
 	Index       uint           `json:"logIndex"`
 	Removed     bool           `json:"removed"`
 }
@@ -80,20 +79,20 @@ type Log struct {
 type Account struct {
 	Nonce       uint64      `json:"nonce"`
 	Balance     *big.Int    `json:"balance"`
-	CodeHash    common.Hash `json:"codeHash"`
-	StorageRoot common.Hash `json:"storageRoot"`
+	CodeHash    crypto.Hash `json:"codeHash"`
+	StorageRoot crypto.Hash `json:"storageRoot"`
 }
 
 // Genesis represents the genesis block configuration
 type Genesis struct {
-	Config      *ChainConfig               `json:"config"`
-	Nonce       uint64                     `json:"nonce"`
-	Timestamp   uint64                     `json:"timestamp"`
-	ExtraData   []byte                     `json:"extraData"`
-	GasLimit    uint64                     `json:"gasLimit"`
-	Difficulty  *big.Int                   `json:"difficulty"`
-	Coinbase    common.Address             `json:"coinbase"`
-	Alloc       map[common.Address]Account `json:"alloc"`
+	Config      *ChainConfig                    `json:"config"`
+	Nonce       uint64                          `json:"nonce"`
+	Timestamp   uint64                          `json:"timestamp"`
+	ExtraData   []byte                          `json:"extraData"`
+	GasLimit    uint64                          `json:"gasLimit"`
+	Difficulty  *big.Int                        `json:"difficulty"`
+	Coinbase    crypto.Address                  `json:"coinbase"`
+	Alloc       map[crypto.Address]Account      `json:"alloc"`
 }
 
 // ChainConfig represents the chain configuration
@@ -112,7 +111,7 @@ func NewBlock(header *BlockHeader, txs []*Transaction) *Block {
 }
 
 // CalculateHash calculates the hash of the block
-func (b *Block) CalculateHash() common.Hash {
+func (b *Block) CalculateHash() crypto.Hash {
 	// Serialize header and calculate hash
 	data := b.Header.Serialize()
 	return crypto.Keccak256Hash(data)
@@ -130,7 +129,7 @@ func (h *BlockHeader) Serialize() []byte {
 }
 
 // NewTransaction creates a new transaction
-func NewTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
+func NewTransaction(nonce uint64, to *crypto.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
 	return &Transaction{
 		Nonce:    nonce,
 		To:       to,
@@ -142,7 +141,7 @@ func NewTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 }
 
 // CalculateHash calculates the hash of the transaction
-func (tx *Transaction) CalculateHash() common.Hash {
+func (tx *Transaction) CalculateHash() crypto.Hash {
 	// Simple serialization for hash calculation
 	data := append(big.NewInt(int64(tx.Nonce)).Bytes(), tx.GasPrice.Bytes()...)
 	data = append(data, big.NewInt(int64(tx.GasLimit)).Bytes()...)
@@ -162,7 +161,7 @@ func (tx *Transaction) IsContractCreation() bool {
 // NewGenesisBlock creates a new genesis block
 func NewGenesisBlock(genesis *Genesis) *Block {
 	header := &BlockHeader{
-		PreviousHash: common.Hash{},
+		PreviousHash: crypto.Hash{},
 		Number:       big.NewInt(0),
 		GasLimit:     genesis.GasLimit,
 		GasUsed:      0,
@@ -187,7 +186,7 @@ func DefaultGenesis() *Genesis {
 		ExtraData:  []byte("Genesis Block"),
 		GasLimit:   8000000,
 		Difficulty: big.NewInt(4),
-		Coinbase:   common.Address{},
-		Alloc:      make(map[common.Address]Account),
+		Coinbase:   crypto.Address{},
+		Alloc:      make(map[crypto.Address]Account),
 	}
 }

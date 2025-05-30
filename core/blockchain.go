@@ -7,9 +7,8 @@ import (
 	"math/big"
 	"sync"
 
+	"blockchain-node/crypto"
 	"blockchain-node/storage"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 var (
@@ -77,7 +76,7 @@ func (bc *Blockchain) GetCurrentBlock() *Block {
 }
 
 // GetBlockByHash retrieves a block by its hash
-func (bc *Blockchain) GetBlockByHash(hash common.Hash) (*Block, error) {
+func (bc *Blockchain) GetBlockByHash(hash crypto.Hash) (*Block, error) {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
 
@@ -100,7 +99,7 @@ func (bc *Blockchain) GetBlockByNumber(number *big.Int) (*Block, error) {
 		return nil, ErrBlockNotFound
 	}
 
-	hash := common.BytesToHash(hashData)
+	hash := crypto.BytesToHash(hashData)
 	return bc.GetBlockByHash(hash)
 }
 
@@ -125,7 +124,7 @@ func (bc *Blockchain) validateBlock(block *Block) error {
 	// Check if previous hash matches current block hash
 	if bc.currentBlock != nil {
 		expectedPrevHash := bc.currentBlock.Hash
-		if block.Header.PreviousHash != expectedPrevHash {
+		if !block.Header.PreviousHash.Equal(expectedPrevHash) {
 			return fmt.Errorf("invalid previous hash: expected %x, got %x", 
 				expectedPrevHash, block.Header.PreviousHash)
 		}
@@ -140,7 +139,7 @@ func (bc *Blockchain) validateBlock(block *Block) error {
 
 	// Validate block hash
 	calculatedHash := block.CalculateHash()
-	if calculatedHash != block.Hash {
+	if !calculatedHash.Equal(block.Hash) {
 		return fmt.Errorf("invalid block hash: expected %x, got %x", 
 			calculatedHash, block.Hash)
 	}
@@ -182,7 +181,7 @@ func (bc *Blockchain) loadCurrentBlock() (*Block, error) {
 		return nil, err
 	}
 
-	hash := common.BytesToHash(hashData)
+	hash := crypto.BytesToHash(hashData)
 	return bc.GetBlockByHash(hash)
 }
 

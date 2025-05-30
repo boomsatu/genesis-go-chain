@@ -7,15 +7,13 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // Wallet represents a cryptocurrency wallet
 type Wallet struct {
 	PrivateKey *ecdsa.PrivateKey
 	PublicKey  []byte
-	Address    common.Address
+	Address    Address
 }
 
 // NewWallet creates a new wallet with a random private key
@@ -25,8 +23,8 @@ func NewWallet() (*Wallet, error) {
 		return nil, fmt.Errorf("failed to generate private key: %v", err)
 	}
 
-	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
-	address := crypto.PubkeyToAddress(privateKey.PublicKey)
+	publicKey := FromECDSAPub(&privateKey.PublicKey)
+	address := PubkeyToAddress(publicKey)
 
 	return &Wallet{
 		PrivateKey: privateKey,
@@ -37,8 +35,8 @@ func NewWallet() (*Wallet, error) {
 
 // WalletFromPrivateKey creates a wallet from an existing private key
 func WalletFromPrivateKey(privateKey *ecdsa.PrivateKey) *Wallet {
-	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
-	address := crypto.PubkeyToAddress(privateKey.PublicKey)
+	publicKey := FromECDSAPub(&privateKey.PublicKey)
+	address := PubkeyToAddress(publicKey)
 
 	return &Wallet{
 		PrivateKey: privateKey,
@@ -49,7 +47,7 @@ func WalletFromPrivateKey(privateKey *ecdsa.PrivateKey) *Wallet {
 
 // GetPrivateKeyHex returns the private key as a hex string
 func (w *Wallet) GetPrivateKeyHex() string {
-	return fmt.Sprintf("%x", crypto.FromECDSA(w.PrivateKey))
+	return fmt.Sprintf("%x", FromECDSA(w.PrivateKey))
 }
 
 // GetPublicKeyHex returns the public key as a hex string
@@ -63,33 +61,33 @@ func (w *Wallet) GetAddressHex() string {
 }
 
 // SignHash signs a hash with the wallet's private key
-func (w *Wallet) SignHash(hash common.Hash) ([]byte, error) {
-	signature, err := crypto.Sign(hash.Bytes(), w.PrivateKey)
+func (w *Wallet) SignHash(hash Hash) ([]byte, error) {
+	signature, err := Sign(hash.Bytes(), w.PrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign hash: %v", err)
 	}
 	return signature, nil
 }
 
-// VerifySignature verifies a signature against a hash and public key
-func VerifySignature(hash common.Hash, signature []byte, publicKey []byte) bool {
-	return crypto.VerifySignature(publicKey, hash.Bytes(), signature[:64])
+// VerifySignatureFunc verifies a signature against a hash and public key
+func VerifySignatureFunc(hash Hash, signature []byte, publicKey []byte) bool {
+	return VerifySignature(publicKey, hash.Bytes(), signature[:64])
 }
 
-// RecoverPublicKey recovers the public key from a signature and hash
-func RecoverPublicKey(hash common.Hash, signature []byte) ([]byte, error) {
-	publicKey, err := crypto.SigToPub(hash.Bytes(), signature)
+// RecoverPublicKeyFunc recovers the public key from a signature and hash
+func RecoverPublicKeyFunc(hash Hash, signature []byte) ([]byte, error) {
+	publicKey, err := SigToPub(hash.Bytes(), signature)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover public key: %v", err)
 	}
-	return crypto.FromECDSAPub(publicKey), nil
+	return FromECDSAPub(publicKey), nil
 }
 
-// RecoverAddress recovers the address from a signature and hash
-func RecoverAddress(hash common.Hash, signature []byte) (common.Address, error) {
-	publicKey, err := crypto.SigToPub(hash.Bytes(), signature)
+// RecoverAddressFunc recovers the address from a signature and hash
+func RecoverAddressFunc(hash Hash, signature []byte) (Address, error) {
+	publicKey, err := SigToPub(hash.Bytes(), signature)
 	if err != nil {
-		return common.Address{}, fmt.Errorf("failed to recover address: %v", err)
+		return Address{}, fmt.Errorf("failed to recover address: %v", err)
 	}
-	return crypto.PubkeyToAddress(*publicKey), nil
+	return PubkeyToAddress(FromECDSAPub(publicKey)), nil
 }
