@@ -1,556 +1,398 @@
 
-# Blockchain Node with EVM Support
+# 🌟 Lumina Blockchain Node
 
-Implementasi blockchain node enterprise-grade dengan dukungan Ethereum Virtual Machine (EVM) menggunakan bahasa pemrograman Go. Node ini dirancang untuk production dengan fitur logging komprehensif, monitoring, dan optimisasi performa.
+A production-ready, professional blockchain node implementation written in Go with custom consensus mechanism, execution environment, and comprehensive tooling.
 
-## 🚀 Fitur Utama
+## ✨ Features
 
-### Core Blockchain Features
-- **Consensus Algorithm**: Proof-of-Work (PoW) dengan difficulty adjustment
-- **EVM Compatibility**: Integrasi penuh dengan go-ethereum EVM
-- **Transaction Pool**: Mempool dengan validasi dan prioritas transaksi
-- **World State Management**: Patricia Merkle Trie untuk state storage
-- **Cryptography**: ECDSA signatures dengan Keccak256 hashing
+### 🔗 Core Blockchain Features
+- **Custom Proof-of-Work Consensus**: Complete PoW implementation from scratch
+- **World State Management**: Custom StateDB with Patricia Merkle Trie-inspired structure
+- **Transaction Execution Engine**: Custom execution environment with gas mechanics
+- **Block Processing**: Full block validation, mining, and propagation
+- **Account Model**: Ethereum-compatible account structure with nonce, balance, and code storage
 
-### Network & Communication
-- **P2P Network**: Jaringan peer-to-peer untuk komunikasi antar node
-- **JSON-RPC API**: Kompatibel dengan Ethereum JSON-RPC API standard
-- **RESTful Endpoints**: Additional REST API untuk kemudahan integrasi
+### 🚀 Production-Ready Architecture
+- **Modular Design**: Clean separation of concerns across packages
+- **Comprehensive Logging**: Structured logging with multiple output formats
+- **Metrics & Monitoring**: Prometheus-compatible metrics endpoint
+- **Configuration Management**: Flexible YAML-based configuration
+- **Error Handling**: Robust error handling throughout the codebase
+- **Database Layer**: LevelDB integration with abstraction layer
 
-### Production Features
-- **Comprehensive Logging**: Multi-level logging (debug, info, warning, error)
-- **Metrics & Monitoring**: Prometheus-compatible metrics
-- **Graceful Shutdown**: Proper resource cleanup dan shutdown handling
-- **Configuration Management**: YAML-based configuration dengan validation
-- **CLI Interface**: Command line interface yang powerful
+### 🌐 Network & Communication
+- **P2P Networking**: Full peer-to-peer protocol implementation
+- **Message Broadcasting**: Efficient block and transaction propagation
+- **Peer Discovery**: Automatic peer discovery and connection management
+- **Network Protocol**: Custom message types with version negotiation
 
-### Performance & Reliability
-- **Database Optimization**: LevelDB dengan tuning untuk performa optimal
-- **Memory Management**: Efficient memory usage dengan garbage collection optimization
-- **Error Handling**: Comprehensive error handling di seluruh codebase
-- **Resource Management**: Proper connection pooling dan resource cleanup
+### 📡 JSON-RPC API
+- **Ethereum Compatibility**: Standard eth_* RPC methods
+- **Custom Methods**: Lumina-specific RPC endpoints
+- **CORS Support**: Configurable CORS for web applications
+- **Health Checks**: Built-in health and statistics endpoints
 
-## 📁 Struktur Proyek
+### ⛏️ Mining Capabilities
+- **Multi-threaded Mining**: Configurable number of mining threads
+- **Dynamic Difficulty**: Automatic difficulty adjustment
+- **Mining Metrics**: Real-time hash rate and performance monitoring
+- **Reward System**: Configurable mining rewards
 
+### 🛠 Developer Tools
+- **CLI Interface**: Comprehensive command-line interface
+- **Wallet Management**: Built-in wallet creation and management
+- **Transaction Tools**: Send transactions with custom data
+- **Status Monitoring**: Real-time node status and metrics
+
+### 🏦 Wallet Extension
+- **Chrome Extension**: Professional MetaMask-compatible wallet extension
+- **Web3 Provider**: Full EIP-1193 provider implementation
+- **DApp Integration**: Seamless integration with decentralized applications
+- **Security Features**: Secure key management and transaction signing
+
+## 🏗 Architecture
+
+### Directory Structure
 ```
 blockchain-node/
-├── cmd/                    # Command line interface dan entry point
-│   ├── main.go            # Main application entry point
-│   └── cli/               # CLI commands dan flags
-│       └── root.go        # Root command configuration
-├── config/                 # Sistem konfigurasi
-│   └── config.go          # Configuration structure dan loading
-├── core/                   # Komponen blockchain inti
-│   ├── types.go           # Data structures (Block, Transaction, etc.)
-│   └── blockchain.go      # Blockchain logic dan state management
-├── consensus/              # Algoritma konsensus
-│   └── pow.go             # Proof-of-Work implementation
-├── evm/                    # Ethereum Virtual Machine integration
-│   └── statedb.go         # EVM StateDB interface implementation
-├── storage/                # Database layer dan penyimpanan
-│   └── database.go        # Database abstraction layer
-├── mempool/                # Transaction pool management
-│   └── mempool.go         # Transaction validation dan queuing
+├── cmd/                     # Command-line interface
+│   ├── cli/                 # CLI commands and parsing
+│   └── main.go             # Application entry point
+├── core/                    # Core blockchain components
+│   ├── blockchain.go        # Blockchain implementation
+│   ├── types.go            # Core data structures
+│   ├── execution.go        # Transaction execution engine
+│   └── statedb.go          # World state management
+├── consensus/               # Consensus mechanisms
+│   └── pow.go              # Proof-of-Work implementation
 ├── p2p/                    # Peer-to-peer networking
-│   └── server.go          # P2P server dan message handling
-├── rpc/                    # JSON-RPC API server
-│   └── server.go          # RPC endpoint implementations
-├── crypto/                 # Cryptographic operations
-│   └── keys.go            # Key generation dan signature handling
+│   └── server.go           # P2P server implementation
+├── rpc/                    # JSON-RPC server
+│   └── server.go           # RPC server with Ethereum compatibility
+├── mempool/                # Transaction pool
+│   └── mempool.go          # Mempool implementation with prioritization
+├── storage/                # Database layer
+│   └── database.go         # LevelDB wrapper with abstraction
+├── crypto/                 # Cryptographic functions
+│   └── keys.go             # Key generation and signing
+├── config/                 # Configuration management
+│   └── config.go           # YAML configuration parsing
 ├── logger/                 # Logging system
-│   └── logger.go          # Structured logging implementation
-├── metrics/                # Monitoring dan metrics
-│   └── metrics.go         # Prometheus metrics collection
+│   └── logger.go           # Structured logging implementation
+├── metrics/                # Metrics and monitoring
+│   └── metrics.go          # Prometheus-compatible metrics
 ├── node/                   # Node orchestration
-│   └── node.go            # Main node logic dan component integration
-└── .blockchain-node.yaml  # Default configuration file
+│   └── node.go             # Main node coordinator
+├── evm/                    # EVM compatibility layer
+│   └── statedb.go          # EVM StateDB adapter
+├── wallet-extension/       # Chrome wallet extension
+│   ├── manifest.json       # Extension manifest
+│   ├── popup.html          # Wallet interface
+│   ├── background.js       # Service worker
+│   ├── content.js          # Content script
+│   ├── inpage.js           # Web3 provider
+│   └── ...                 # Additional extension files
+└── docs/                   # Documentation
+    ├── mining.md           # Mining guide
+    ├── rpc.md              # RPC API documentation
+    └── metrics.md          # Metrics guide
 ```
 
-## 🛠 Instalasi dan Setup
+## 🚀 Quick Start
 
 ### Prerequisites
-- **Go**: Version 1.21 atau lebih baru
-- **Git**: Untuk cloning repository
-- **Make**: Untuk build automation (optional)
+- Go 1.21 or higher
+- Git
+- Make (optional)
 
-### Quick Start
+### Installation
 
-1. **Clone Repository**:
-```bash
-git clone <repository-url>
-cd blockchain-node
-```
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd blockchain-node
+   ```
 
-2. **Install Dependencies**:
-```bash
-go mod tidy
-```
+2. **Install dependencies**
+   ```bash
+   go mod download
+   ```
 
-3. **Build Binary**:
-```bash
-go build -o blockchain-node cmd/main.go
-```
+3. **Build the application**
+   ```bash
+   go build -o lumina-node cmd/main.go
+   ```
 
-4. **Run with Default Configuration**:
-```bash
-./blockchain-node startnode
-```
+### Basic Usage
 
-### Advanced Installation
+1. **Start a node**
+   ```bash
+   ./lumina-node startnode
+   ```
 
-1. **Build dengan Optimizations**:
-```bash
-go build -ldflags="-s -w" -o blockchain-node cmd/main.go
-```
+2. **Start with mining enabled**
+   ```bash
+   ./lumina-node startnode --mining --rpc
+   ```
 
-2. **Cross-Platform Build**:
-```bash
-# Linux
-GOOS=linux GOARCH=amd64 go build -o blockchain-node-linux cmd/main.go
+3. **Create a wallet**
+   ```bash
+   ./lumina-node createwallet
+   ```
 
-# Windows
-GOOS=windows GOARCH=amd64 go build -o blockchain-node.exe cmd/main.go
+4. **Check balance**
+   ```bash
+   ./lumina-node getbalance 0x1234...
+   ```
 
-# macOS
-GOOS=darwin GOARCH=amd64 go build -o blockchain-node-macos cmd/main.go
-```
+5. **Send transaction**
+   ```bash
+   ./lumina-node send --from 0x1234... --to 0x5678... --amount 1.5
+   ```
 
-## 🔧 Konfigurasi
+### Configuration
 
-### File Konfigurasi
-
-Node menggunakan file konfigurasi YAML (`.blockchain-node.yaml`) untuk mengatur semua parameter:
+The node uses YAML configuration files. Create a `.blockchain-node.yaml` file in your home directory or working directory:
 
 ```yaml
-# Network Configuration
 network:
   port: 8080
-  listen_addr: "0.0.0.0"
   max_peers: 50
-  timeout: 30
-  seed_nodes:
-    - "127.0.0.1:8081"
-    - "127.0.0.1:8082"
-
-# JSON-RPC Configuration
+  
 rpc:
   enabled: true
   port: 8545
   host: "localhost"
-  cors_origins: ["*"]
-  max_connections: 100
-  timeout: 30
-
-# Mining Configuration
+  
 mining:
-  enabled: false
-  address: ""
-  threads: 1
-  difficulty: 4
-
-# Database Configuration
-db:
-  path: "./data"
-  type: "leveldb"
-  cache_size: 64      # MB
-  max_open_files: 1000
-  write_buffer: 4     # MB
-
-# EVM Configuration
-evm:
-  chain_id: 1337
-  block_gas_limit: 8000000
-  min_gas_price: 1000000000  # 1 Gwei
-
-# Logging Configuration
-logging:
-  level: "info"              # debug, info, warning, error
-  output: "both"             # console, file, both
-  file_path: "./logs/blockchain.log"
-  max_size: 100             # MB
-  component: "blockchain-node"
-
-# Metrics Configuration
-metrics:
   enabled: true
-  port: 8080
-  path: "/metrics"
+  threads: 4
+  difficulty: 4
+  
+logging:
+  level: "info"
+  output: "both"
+  file_path: "./logs/node.log"
 ```
 
-### Environment Variables
+## 📖 Documentation
 
-Anda juga dapat menggunakan environment variables untuk override konfigurasi:
+### Core Components
 
-```bash
-export BLOCKCHAIN_NETWORK_PORT=8080
-export BLOCKCHAIN_RPC_PORT=8545
-export BLOCKCHAIN_MINING_ENABLED=true
-export BLOCKCHAIN_LOGGING_LEVEL=debug
-```
+#### Blockchain Engine
+The blockchain engine manages the chain state, validates blocks, and processes transactions. It uses a custom execution environment that interprets transaction data and modifies account states accordingly.
 
-## 🎯 Penggunaan
+#### Consensus Mechanism
+Implements Proof-of-Work consensus with SHA256 hashing. The difficulty adjusts automatically based on block time targets, ensuring consistent block production.
 
-### Command Line Interface
+#### State Management
+Uses a custom StateDB that maintains account states, contract storage, and transaction logs. The state root is calculated using merkle tree structures for integrity verification.
 
-#### Menjalankan Node
+#### Transaction Processing
+Transactions are validated for signature correctness, nonce sequencing, and sufficient balance before execution. The execution engine handles value transfers, contract creation, and contract calls.
 
-```bash
-# Start node dengan konfigurasi default
-./blockchain-node startnode
+### API Reference
 
-# Start node dengan konfigurasi custom
-./blockchain-node startnode --config custom-config.yaml
+#### JSON-RPC Methods
 
-# Start node dengan logging debug
-./blockchain-node startnode --log-level debug
+**Ethereum Compatible Methods:**
+- `eth_blockNumber` - Get current block number
+- `eth_getBalance` - Get account balance
+- `eth_getTransactionCount` - Get account nonce
+- `eth_sendRawTransaction` - Submit raw transaction
+- `eth_getBlockByHash` - Get block by hash
+- `eth_getBlockByNumber` - Get block by number
+- `eth_getTransactionByHash` - Get transaction by hash
+- `eth_getTransactionReceipt` - Get transaction receipt
+- `eth_call` - Simulate transaction call
+- `eth_estimateGas` - Estimate gas for transaction
+- `eth_gasPrice` - Get current gas price
+- `eth_chainId` - Get chain ID
 
-# Start node dengan mining enabled
-./blockchain-node startnode --mining-enabled --mining-address 0x1234...
-```
+**Custom Methods:**
+- `lumina_getStats` - Get node statistics
+- `lumina_getMempoolSize` - Get mempool size
 
-#### Wallet Management
+### Mining Guide
 
-```bash
-# Create new wallet
-./blockchain-node createwallet
+1. **Enable Mining**
+   ```bash
+   ./lumina-node startnode --mining
+   ```
 
-# Create wallet dengan custom nama
-./blockchain-node createwallet --name "my-wallet"
+2. **Configure Mining**
+   ```yaml
+   mining:
+     enabled: true
+     threads: 4
+     difficulty: 4
+     address: "0x..." # Optional mining reward address
+   ```
 
-# Import existing private key
-./blockchain-node importwallet --private-key "0xabcd..."
-```
+3. **Monitor Mining**
+   - Check logs for mining progress
+   - Use metrics endpoint for hash rate
+   - Monitor block production rate
 
-#### Balance dan Transactions
+### Wallet Extension Setup
 
-```bash
-# Check balance
-./blockchain-node getbalance 0x1234567890abcdef1234567890abcdef12345678
+1. **Load Extension**
+   - Open Chrome and go to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked" and select `wallet-extension/` folder
 
-# Send transaction
-./blockchain-node send \
-  --from 0x1234567890abcdef1234567890abcdef12345678 \
-  --to 0xabcdef1234567890abcdef1234567890abcdef12 \
-  --amount 1000000000000000000 \
-  --gaslimit 21000 \
-  --gasprice 1000000000
+2. **Connect to DApps**
+   The extension provides a MetaMask-compatible Web3 provider that DApps can use to interact with the Lumina blockchain.
 
-# Send contract deployment
-./blockchain-node send \
-  --from 0x1234567890abcdef1234567890abcdef12345678 \
-  --data 0x608060405234801561001057600080fd5b50... \
-  --gaslimit 1000000 \
-  --gasprice 1000000000
-```
+## 🔧 Development
 
-#### Network Commands
-
-```bash
-# Get network info
-./blockchain-node networkinfo
-
-# List connected peers
-./blockchain-node peers
-
-# Add peer manually
-./blockchain-node addpeer 127.0.0.1:8081
-```
-
-## 🌐 API Documentation
-
-### JSON-RPC API (Ethereum Compatible)
-
-#### Block Methods
-```bash
-# Get latest block number
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
-  http://localhost:8545
-
-# Get block by number
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x1", true],"id":1}' \
-  http://localhost:8545
-
-# Get block by hash
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_getBlockByHash","params":["0xabcd...", true],"id":1}' \
-  http://localhost:8545
-```
-
-#### Account Methods
-```bash
-# Get account balance
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_getBalance","params":["0x1234...","latest"],"id":1}' \
-  http://localhost:8545
-
-# Get transaction count (nonce)
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_getTransactionCount","params":["0x1234...","latest"],"id":1}' \
-  http://localhost:8545
-```
-
-#### Transaction Methods
-```bash
-# Send raw transaction
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_sendRawTransaction","params":["0xf86c..."],"id":1}' \
-  http://localhost:8545
-
-# Get transaction by hash
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_getTransactionByHash","params":["0xabcd..."],"id":1}' \
-  http://localhost:8545
-
-# Get transaction receipt
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["0xabcd..."],"id":1}' \
-  http://localhost:8545
-```
-
-#### Contract Methods
-```bash
-# Call contract method
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x1234...","data":"0xabcd..."},"latest"],"id":1}' \
-  http://localhost:8545
-
-# Estimate gas
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_estimateGas","params":[{"to":"0x1234...","data":"0xabcd..."}],"id":1}' \
-  http://localhost:8545
-
-# Get contract code
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_getCode","params":["0x1234...","latest"],"id":1}' \
-  http://localhost:8545
-```
-
-### RESTful API
+### Building from Source
 
 ```bash
-# Get latest block number
-curl http://localhost:8545/eth/blockNumber
+# Clone repository
+git clone <repository-url>
+cd blockchain-node
 
-# Get account balance
-curl http://localhost:8545/eth/getBalance/0x1234567890abcdef1234567890abcdef12345678
-
-# Get block by number
-curl http://localhost:8545/eth/getBlockByNumber/1
-
-# Get block by hash
-curl http://localhost:8545/eth/getBlockByHash/0xabcd...
-```
-
-### Metrics API
-
-```bash
-# Get Prometheus metrics
-curl http://localhost:8080/metrics
-```
-
-## 🔍 Monitoring dan Debugging
-
-### Logging
-
-Node menyediakan logging berlevel dengan format JSON untuk production:
-
-```bash
-# Set log level
-./blockchain-node startnode --log-level debug
-
-# Log ke file
-./blockchain-node startnode --log-output file --log-file ./custom.log
-
-# Log ke console dan file
-./blockchain-node startnode --log-output both
-```
-
-### Metrics
-
-Metrics tersedia dalam format Prometheus di `/metrics` endpoint:
-
-- `blockchain_blocks_total`: Total blocks processed
-- `blockchain_transactions_total`: Total transactions processed
-- `blockchain_peers_connected`: Number of connected peers
-- `blockchain_mempool_size`: Current mempool size
-- `blockchain_mining_difficulty`: Current mining difficulty
-
-### Debug Mode
-
-```bash
-# Start dengan debug mode
-./blockchain-node startnode --debug
-
-# Enable verbose P2P logging
-./blockchain-node startnode --debug --log-level debug
-```
-
-## 🏗 Development
-
-### Struktur Development
-
-```bash
-# Install development dependencies
+# Install dependencies
 go mod download
 
 # Run tests
 go test ./...
 
-# Run tests dengan coverage
-go test -race -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+# Build
+go build -o lumina-node cmd/main.go
 
-# Run linter
-golangci-lint run
-
-# Format code
-go fmt ./...
+# Run with development settings
+./lumina-node startnode --log-level debug --mining
 ```
 
-### Build Automation
+### Adding Custom Features
+
+1. **Custom Transaction Types**
+   Extend the execution engine in `core/execution.go` to handle new transaction data formats.
+
+2. **New RPC Methods**
+   Add methods to `rpc/server.go` and register them in the `registerMethods()` function.
+
+3. **Enhanced Consensus**
+   Modify `consensus/pow.go` to implement different difficulty algorithms or consensus mechanisms.
+
+### Testing
 
 ```bash
-# Build untuk semua platform
-make build-all
+# Run all tests
+go test ./...
 
-# Run tests
-make test
+# Run tests with coverage
+go test -cover ./...
 
-# Clean build artifacts
-make clean
-
-# Install dependencies
-make deps
+# Run specific package tests
+go test ./core
 ```
 
-### Testing Environment
+## 📊 Monitoring & Metrics
 
-```bash
-# Start test network dengan 3 nodes
-./scripts/start-testnet.sh
+### Prometheus Metrics
 
-# Deploy test contracts
-./scripts/deploy-contracts.sh
+The node exposes Prometheus-compatible metrics at `/metrics`:
 
-# Run integration tests
-make test-integration
-```
+- `lumina_block_height` - Current block height
+- `lumina_total_transactions` - Total transactions processed
+- `lumina_mempool_size` - Current mempool size
+- `lumina_peer_count` - Number of connected peers
+- `lumina_hash_rate` - Current mining hash rate
+- `lumina_uptime_seconds` - Node uptime
 
-## 🔐 Security Considerations
+### Health Checks
 
-### Production Deployment
+Health endpoint at `/health` provides:
+- Node status
+- Current block height
+- Peer count
+- Mempool size
 
-1. **Network Security**:
-   - Gunakan firewall untuk membatasi akses ke port RPC
-   - Implementasikan TLS untuk komunikasi antar node
-   - Whitelist peer nodes yang trusted
+### Logging
 
-2. **Key Management**:
-   - Simpan private keys dalam encrypted storage
-   - Gunakan hardware security modules (HSM) untuk production
-   - Implement key rotation policies
+Structured logging with configurable levels and outputs:
+- Console output with colors
+- File output with rotation
+- JSON format for log aggregation
 
-3. **Monitoring**:
-   - Monitor metrics untuk anomaly detection
-   - Setup alerting untuk critical events
-   - Log audit trail untuk semua transactions
+## 🛡 Security
 
-4. **Configuration**:
-   - Gunakan environment variables untuk sensitive data
-   - Validate semua input parameters
-   - Implement rate limiting untuk API endpoints
+### Cryptographic Security
+- ECDSA signatures using secp256k1 curve
+- Keccak256 hashing for Ethereum compatibility
+- SHA256 for Proof-of-Work mining
+- Secure random number generation
 
-## 📈 Performance Tuning
+### Network Security
+- Peer authentication and verification
+- Message validation and sanitization
+- Rate limiting for RPC endpoints
+- CORS configuration for web security
 
-### Database Optimization
-
-```yaml
-db:
-  cache_size: 128        # Increase untuk better read performance
-  max_open_files: 2000   # Increase untuk high-load scenarios
-  write_buffer: 8        # Increase untuk better write performance
-```
-
-### Network Optimization
-
-```yaml
-network:
-  max_peers: 100         # Increase untuk better network connectivity
-  timeout: 60            # Increase untuk slow networks
-```
-
-### EVM Optimization
-
-```yaml
-evm:
-  block_gas_limit: 12000000  # Increase untuk more transactions per block
-```
-
-## 🚦 Roadmap
-
-### Planned Features
-
-- [ ] **Smart Contract Debugging**: Debug interface untuk contract execution
-- [ ] **Sharding Support**: Horizontal scaling melalui sharding
-- [ ] **Light Client Support**: SPV-like light client implementation
-- [ ] **Cross-Chain Bridge**: Bridge ke Ethereum mainnet
-- [ ] **Consensus Upgrade**: Migrasi ke Proof-of-Stake
-- [ ] **Advanced P2P**: DHT-based peer discovery
-- [ ] **State Pruning**: Historical state cleanup untuk disk efficiency
-- [ ] **WebSocket API**: Real-time event subscriptions
-
-### Current Limitations
-
-- Single-threaded EVM execution
-- In-memory state (tidak persistent untuk restarts)
-- Basic P2P protocol (belum ada advanced features seperti fast sync)
-- Limited smart contract debugging tools
+### Wallet Security
+- Private key encryption in wallet extension
+- Secure key storage in browser extension
+- Transaction signing with user confirmation
+- Network validation for transaction safety
 
 ## 🤝 Contributing
 
-### Development Guidelines
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-1. **Code Style**: Ikuti Go standard formatting dengan `gofmt`
-2. **Testing**: Semua code baru harus memiliki unit tests
-3. **Documentation**: Update documentation untuk API changes
-4. **Commit Messages**: Gunakan conventional commit format
+### Code Standards
+- Follow Go best practices and conventions
+- Write comprehensive tests for new features
+- Update documentation for API changes
+- Use structured logging for debugging
+- Handle errors gracefully with proper context
 
-### Pull Request Process
+## 📝 License
 
-1. Fork repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### Issue Reporting
+## 🔗 Links
 
-Gunakan GitHub Issues dengan template yang tersedia:
-- Bug reports
-- Feature requests  
-- Performance issues
-- Documentation improvements
+- [Mining Guide](docs/mining.md)
+- [RPC API Documentation](docs/rpc.md)
+- [Metrics Guide](docs/metrics.md)
+- [Wallet Extension Guide](wallet-extension/README.md)
 
-## 📄 License
+## 🎯 Roadmap
 
-Proyek ini dilisensikan di bawah MIT License - lihat file [LICENSE](LICENSE) untuk detail lengkap.
+### Phase 1: Core Infrastructure ✅
+- [x] Basic blockchain implementation
+- [x] Proof-of-Work consensus
+- [x] P2P networking
+- [x] JSON-RPC API
+- [x] Wallet extension
 
-## 🙏 Acknowledgments
+### Phase 2: Enhanced Features
+- [ ] Smart contract virtual machine
+- [ ] Advanced transaction types
+- [ ] Stake-based consensus option
+- [ ] Cross-chain bridges
 
-- **go-ethereum team**: Untuk EVM implementation yang excellent
-- **LevelDB**: Untuk database storage yang reliable
-- **Gin framework**: Untuk HTTP routing yang powerful
-- **Cobra CLI**: Untuk command-line interface yang elegant
+### Phase 3: Ecosystem Tools
+- [ ] Block explorer web interface
+- [ ] Development framework
+- [ ] Testing suite
+- [ ] Deployment tools
 
-## 📞 Support
-
-- **Documentation**: [Wiki](../../wiki)
-- **Issues**: [GitHub Issues](../../issues)
-- **Discussions**: [GitHub Discussions](../../discussions)
-- **Email**: support@blockchain-node.dev
+### Phase 4: Enterprise Features
+- [ ] Permissioned networks
+- [ ] Advanced monitoring
+- [ ] High availability setup
+- [ ] Performance optimization
 
 ---
 
-**Blockchain Node** - Enterprise-grade blockchain implementation dengan dukungan EVM penuh.
+**Built with ❤️ for the blockchain community**
+
+For questions, issues, or contributions, please visit our [GitHub repository](https://github.com/lumina-blockchain/node).

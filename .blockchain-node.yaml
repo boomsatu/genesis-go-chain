@@ -1,51 +1,57 @@
 
-# Blockchain Node Configuration
-# Production-ready configuration with comprehensive logging and monitoring
+# Lumina Blockchain Node Configuration File
 
+# Network configuration
 network:
-  port: 8080
-  listen_addr: "0.0.0.0"
-  max_peers: 50
-  timeout: 30
-  seed_nodes:
+  port: 8080                    # P2P listening port
+  listen_addr: "0.0.0.0"      # Listen address for P2P connections
+  max_peers: 50                # Maximum number of connected peers
+  timeout: 30                  # Connection timeout in seconds
+  seed_nodes:                  # List of seed nodes to connect to
     - "127.0.0.1:8081"
     - "127.0.0.1:8082"
 
+# RPC server configuration
 rpc:
-  enabled: true
-  port: 8545
-  host: "localhost"
-  cors_origins:
+  enabled: true                # Enable JSON-RPC server
+  port: 8545                   # RPC server port
+  host: "localhost"            # RPC server host
+  cors_origins:                # CORS allowed origins
     - "*"
-  max_connections: 100
-  timeout: 30
+  max_connections: 100         # Maximum concurrent RPC connections
+  timeout: 30                  # RPC request timeout in seconds
 
+# Mining configuration
 mining:
-  enabled: false
-  address: ""
-  threads: 1
-  difficulty: 4
+  enabled: false               # Enable mining
+  address: ""                  # Mining reward address (optional)
+  threads: 1                   # Number of mining threads
+  difficulty: 4                # Initial mining difficulty
 
+# Database configuration
 db:
-  path: "./data"
-  type: "leveldb"
-  cache_size: 64      # MB
-  max_open_files: 1000
-  write_buffer: 4     # MB
+  path: "./data"               # Database directory path
+  type: "leveldb"              # Database type
+  cache_size: 64               # Cache size in MB
+  max_open_files: 1000         # Maximum open files
+  write_buffer: 4              # Write buffer size in MB
 
+# EVM configuration
 evm:
-  chain_id: 1337
-  block_gas_limit: 8000000
-  min_gas_price: 1000000000  # 1 Gwei
+  chain_id: 1337               # Chain ID
+  block_gas_limit: 8000000     # Block gas limit
+  min_gas_price: 1000000000    # Minimum gas price (1 Gwei)
 
+# Logging configuration
 logging:
-  level: "info"              # debug, info, warning, error
-  output: "both"             # console, file, both
-  file_path: "./logs/blockchain.log"
-  max_size: 100             # MB
-  component: "blockchain-node"
+  level: "info"                # Log level: debug, info, warning, error, fatal
+  output: "console"            # Output: console, file, both
+  file_path: "./logs/blockchain.log"  # Log file path
+  max_size: 100                # Maximum log file size in MB
+  component: "blockchain-node" # Component name for logging
 
+# Metrics configuration
 metrics:
-  enabled: true
-  port: 8080
-  path: "/metrics"
+  enabled: false               # Enable metrics server
+  port: 8080                   # Metrics server port
+  path: "/metrics"             # Metrics endpoint path

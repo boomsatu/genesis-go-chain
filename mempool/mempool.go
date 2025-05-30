@@ -2,8 +2,9 @@
 package mempool
 
 import (
-	"errors"
+	"container/heap"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -13,48 +14,74 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var (
-	ErrTransactionExists     = errors.New("transaction already exists")
-	ErrInvalidTransaction    = errors.New("invalid transaction")
-	ErrInsufficientGasPrice = errors.New("gas price too low")
-	ErrMempoolFull          = errors.New("mempool is full")
-	ErrInvalidNonce         = errors.New("invalid nonce")
-)
-
 // Config holds mempool configuration
 type Config struct {
-	MaxSize     int    `json:"max_size"`
-	MinGasPrice uint64 `json:"min_gas_price"`
+	MaxSize     int      // Maximum number of transactions
+	MinGasPrice uint64   // Minimum gas price (wei)
+	MaxTxSize   int      // Maximum transaction size in bytes
+	Timeout     duration // Transaction timeout
 }
 
-// Mempool represents the transaction pool
+type duration time.Duration
+
+// Mempool manages pending transactions
 type Mempool struct {
-	transactions map[common.Hash]*core.Transaction
-	pending      map[common.Address][]*core.Transaction // Pending transactions by sender
-	mu           sync.RWMutex
-	config       *Config
-	logger       *logger.Logger
-	
-	// Statistics
-	totalAdded    uint64
-	totalRemoved  uint64
-	totalRejected uint64
+	config      *Config
+	pending     map[common.Hash]*core.Transaction
+	queue       TransactionQueue
+	byFrom      map[common.Address][]*core.Transaction
+	logger      *logger.Logger
+	mu          sync.RWMutex
 }
 
-// NewMempool creates a new mempool with configuration
-func NewMempool(config *Config) *Mempool {
-	if config == nil {
-		config = &Config{
-			MaxSize:     1000,
-			MinGasPrice: 1000000000, // 1 Gwei
-		}
-	}
+// TransactionPriorityItem represents a transaction with priority for the heap
+type TransactionPriorityItem struct {
+	Tx       *core.Transaction
+	Priority *big.Int // Gas price for priority
+	Index    int
+}
 
+// TransactionQueue implements heap.Interface for transaction prioritization
+type TransactionQueue []*TransactionPriorityItem
+
+func (pq TransactionQueue) Len() int { return len(pq) }
+
+func (pq TransactionQueue) Less(i, j int) bool {
+	// Higher gas price has higher priority
+	return pq[i].Priority.Cmp(pq[j].Priority) > 0
+}
+
+func (pq TransactionQueue) Swap(i, j int) {
+	pq[i], pq[j] = pq[j], pq[i]
+	pq[i].Index = i
+	pq[j].Index = j
+}
+
+func (pq *TransactionQueue) Push(x interface{}) {
+	n := len(*pq)
+	item := x.(*TransactionPriorityItem)
+	item.Index = n
+	*pq = append(*pq, item)
+}
+
+func (pq *TransactionQueue) Pop() interface{} {
+	old := *pq
+	n := len(old)
+	item := old[n-1]
+	old[n-1] = nil
+	item.Index = -1
+	*pq = old[0 : n-1]
+	return item
+}
+
+// NewMempool creates a new mempool instance
+func NewMempool(config *Config) *Mempool {
 	return &Mempool{
-		transactions: make(map[common.Hash]*core.Transaction),
-		pending:      make(map[common.Address][]*core.Transaction),
-		config:       config,
-		logger:       logger.NewLogger("mempool"),
+		config:  config,
+		pending: make(map[common.Hash]*core.Transaction),
+		queue:   make(TransactionQueue, 0),
+		byFrom:  make(map[common.Address][]*core.Transaction),
+		logger:  logger.NewLogger("mempool"),
 	}
 }
 
@@ -63,69 +90,86 @@ func (mp *Mempool) AddTransaction(tx *core.Transaction) error {
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
 
-	// Check if mempool is full
-	if len(mp.transactions) >= mp.config.MaxSize {
-		mp.totalRejected++
-		return ErrMempoolFull
+	// Validate transaction
+	if err := mp.validateTransaction(tx); err != nil {
+		mp.logger.Warning("Transaction validation failed", "hash", tx.Hash.Hex(), "error", err)
+		return err
 	}
 
 	// Check if transaction already exists
-	if _, exists := mp.transactions[tx.Hash]; exists {
-		mp.totalRejected++
-		return ErrTransactionExists
+	if _, exists := mp.pending[tx.Hash]; exists {
+		return fmt.Errorf("transaction already exists in mempool")
 	}
 
-	// Validate transaction
-	if err := mp.validateTransaction(tx); err != nil {
-		mp.totalRejected++
-		return fmt.Errorf("transaction validation failed: %v", err)
+	// Check mempool size limit
+	if len(mp.pending) >= mp.config.MaxSize {
+		// Remove lowest priority transaction
+		mp.removeLowPriorityTransaction()
 	}
 
-	// Add to mempool
-	mp.transactions[tx.Hash] = tx
-	mp.pending[tx.From] = append(mp.pending[tx.From], tx)
-	mp.totalAdded++
+	// Add to pending transactions
+	mp.pending[tx.Hash] = tx
 
-	mp.logger.Debug("Transaction added to mempool: %x, from: %s, gas: %d", 
-		tx.Hash, tx.From.Hex(), tx.GasLimit)
-	
+	// Add to priority queue
+	item := &TransactionPriorityItem{
+		Tx:       tx,
+		Priority: tx.GasPrice,
+	}
+	heap.Push(&mp.queue, item)
+
+	// Add to by-from index
+	mp.byFrom[tx.From] = append(mp.byFrom[tx.From], tx)
+
+	mp.logger.Debug("Transaction added to mempool", 
+		"hash", tx.Hash.Hex(), 
+		"from", tx.From.Hex(), 
+		"gasPrice", tx.GasPrice.String(),
+		"mempoolSize", len(mp.pending))
+
 	return nil
 }
 
 // RemoveTransaction removes a transaction from the mempool
-func (mp *Mempool) RemoveTransaction(txHash common.Hash) {
+func (mp *Mempool) RemoveTransaction(hash common.Hash) {
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
 
-	if tx, exists := mp.transactions[txHash]; exists {
-		delete(mp.transactions, txHash)
-		mp.totalRemoved++
-		
-		// Remove from pending list
-		senderTxs := mp.pending[tx.From]
-		for i, pendingTx := range senderTxs {
-			if pendingTx.Hash == txHash {
-				mp.pending[tx.From] = append(senderTxs[:i], senderTxs[i+1:]...)
-				break
-			}
-		}
-		
-		// Clean up empty pending lists
-		if len(mp.pending[tx.From]) == 0 {
-			delete(mp.pending, tx.From)
-		}
-
-		mp.logger.Debug("Transaction removed from mempool: %x", txHash)
+	tx, exists := mp.pending[hash]
+	if !exists {
+		return
 	}
+
+	// Remove from pending
+	delete(mp.pending, hash)
+
+	// Remove from by-from index
+	fromTxs := mp.byFrom[tx.From]
+	for i, fromTx := range fromTxs {
+		if fromTx.Hash == hash {
+			mp.byFrom[tx.From] = append(fromTxs[:i], fromTxs[i+1:]...)
+			break
+		}
+	}
+
+	// Remove empty slice
+	if len(mp.byFrom[tx.From]) == 0 {
+		delete(mp.byFrom, tx.From)
+	}
+
+	// Rebuild priority queue (inefficient but simple)
+	mp.rebuildQueue()
+
+	mp.logger.Debug("Transaction removed from mempool", 
+		"hash", hash.Hex(), 
+		"mempoolSize", len(mp.pending))
 }
 
 // GetTransaction retrieves a transaction by hash
-func (mp *Mempool) GetTransaction(txHash common.Hash) (*core.Transaction, bool) {
+func (mp *Mempool) GetTransaction(hash common.Hash) *core.Transaction {
 	mp.mu.RLock()
 	defer mp.mu.RUnlock()
 
-	tx, exists := mp.transactions[txHash]
-	return tx, exists
+	return mp.pending[hash]
 }
 
 // GetPendingTransactions returns all pending transactions
@@ -133,148 +177,172 @@ func (mp *Mempool) GetPendingTransactions() []*core.Transaction {
 	mp.mu.RLock()
 	defer mp.mu.RUnlock()
 
-	var txs []*core.Transaction
-	for _, tx := range mp.transactions {
-		txs = append(txs, tx)
-	}
-	return txs
-}
-
-// GetPendingTransactionsForMining returns transactions ready for mining, sorted by gas price
-func (mp *Mempool) GetPendingTransactionsForMining(limit int) []*core.Transaction {
-	mp.mu.RLock()
-	defer mp.mu.RUnlock()
-
-	// Convert to slice
-	var txs []*core.Transaction
-	for _, tx := range mp.transactions {
+	txs := make([]*core.Transaction, 0, len(mp.pending))
+	for _, tx := range mp.pending {
 		txs = append(txs, tx)
 	}
 
-	// Sort by gas price (descending) - simple bubble sort for now
-	// In production, use a more efficient sorting algorithm
-	for i := 0; i < len(txs)-1; i++ {
-		for j := 0; j < len(txs)-i-1; j++ {
-			if txs[j].GasPrice.Cmp(txs[j+1].GasPrice) < 0 {
-				txs[j], txs[j+1] = txs[j+1], txs[j]
-			}
-		}
-	}
-
-	// Apply limit
-	if limit > 0 && len(txs) > limit {
-		txs = txs[:limit]
-	}
-
-	mp.logger.Debug("Retrieved %d transactions for mining (limit: %d)", len(txs), limit)
 	return txs
 }
 
-// Size returns the number of transactions in the mempool
-func (mp *Mempool) Size() int {
+// GetPendingTransactionsForMining returns transactions ready for mining
+func (mp *Mempool) GetPendingTransactionsForMining(maxCount int) []*core.Transaction {
 	mp.mu.RLock()
 	defer mp.mu.RUnlock()
-	return len(mp.transactions)
+
+	if len(mp.queue) == 0 {
+		return []*core.Transaction{}
+	}
+
+	// Create a copy of the queue for processing
+	queueCopy := make(TransactionQueue, len(mp.queue))
+	copy(queueCopy, mp.queue)
+	heap.Init(&queueCopy)
+
+	txs := make([]*core.Transaction, 0, maxCount)
+	count := 0
+
+	for len(queueCopy) > 0 && count < maxCount {
+		item := heap.Pop(&queueCopy).(*TransactionPriorityItem)
+		txs = append(txs, item.Tx)
+		count++
+	}
+
+	return txs
 }
 
-// GetPendingTransactionsByAddress returns pending transactions for a specific address
-func (mp *Mempool) GetPendingTransactionsByAddress(address common.Address) []*core.Transaction {
+// GetTransactionsByFrom returns transactions from a specific address
+func (mp *Mempool) GetTransactionsByFrom(from common.Address) []*core.Transaction {
 	mp.mu.RLock()
 	defer mp.mu.RUnlock()
 
-	txs := mp.pending[address]
+	txs := mp.byFrom[from]
+	if txs == nil {
+		return []*core.Transaction{}
+	}
+
+	// Return a copy
 	result := make([]*core.Transaction, len(txs))
 	copy(result, txs)
 	return result
 }
 
-// validateTransaction validates a transaction
+// Size returns the current size of the mempool
+func (mp *Mempool) Size() int {
+	mp.mu.RLock()
+	defer mp.mu.RUnlock()
+
+	return len(mp.pending)
+}
+
+// validateTransaction validates a transaction before adding to mempool
 func (mp *Mempool) validateTransaction(tx *core.Transaction) error {
-	// Check gas price
-	if tx.GasPrice.Uint64() < mp.config.MinGasPrice {
-		return fmt.Errorf("%w: got %d, minimum %d", ErrInsufficientGasPrice, 
-			tx.GasPrice.Uint64(), mp.config.MinGasPrice)
+	// Check minimum gas price
+	if tx.GasPrice.Cmp(big.NewInt(int64(mp.config.MinGasPrice))) < 0 {
+		return fmt.Errorf("gas price too low: got %s, minimum %d", 
+			tx.GasPrice.String(), mp.config.MinGasPrice)
 	}
 
-	// Check basic transaction validity
+	// Check gas limit
 	if tx.GasLimit == 0 {
 		return fmt.Errorf("gas limit cannot be zero")
 	}
 
-	if tx.Value.Sign() < 0 {
-		return fmt.Errorf("negative value")
+	if tx.GasLimit > 8000000 { // Max block gas limit
+		return fmt.Errorf("gas limit too high: %d", tx.GasLimit)
 	}
 
-	// Check transaction size limit (prevent spam)
-	if len(tx.Data) > 32*1024 { // 32KB limit
-		return fmt.Errorf("transaction data too large: %d bytes", len(tx.Data))
-	}
-
-	// Validate signature
-	if err := mp.validateSignature(tx); err != nil {
-		return fmt.Errorf("invalid signature: %v", err)
-	}
-
-	return nil
-}
-
-// validateSignature validates the transaction signature
-func (mp *Mempool) validateSignature(tx *core.Transaction) error {
-	// Simple signature validation - in production, use proper ECDSA recovery
-	if tx.V == nil || tx.R == nil || tx.S == nil {
-		return fmt.Errorf("missing signature components")
-	}
-
-	// TODO: Implement proper ECDSA signature verification
-	// For now, just check that signature components exist and are valid
-	if tx.V.Sign() < 0 || tx.R.Sign() <= 0 || tx.S.Sign() <= 0 {
-		return fmt.Errorf("invalid signature values")
-	}
-	
-	return nil
-}
-
-// SetMinGasPrice sets the minimum gas price for transactions
-func (mp *Mempool) SetMinGasPrice(gasPrice uint64) {
-	mp.mu.Lock()
-	defer mp.mu.Unlock()
-	
-	oldPrice := mp.config.MinGasPrice
-	mp.config.MinGasPrice = gasPrice
-	
-	mp.logger.Info("Minimum gas price updated: %d -> %d", oldPrice, gasPrice)
-	
-	// Remove transactions with gas price below new minimum
-	var toRemove []common.Hash
-	for hash, tx := range mp.transactions {
-		if tx.GasPrice.Uint64() < gasPrice {
-			toRemove = append(toRemove, hash)
+	// Check transaction size
+	if mp.config.MaxTxSize > 0 {
+		// Estimate transaction size (simplified)
+		txSize := 32 + 32 + 8 + 8 + 32 + len(tx.Data) + 32 + 32 + 32 // Basic fields + data + signature
+		if txSize > mp.config.MaxTxSize {
+			return fmt.Errorf("transaction too large: %d bytes", txSize)
 		}
 	}
-	
-	for _, hash := range toRemove {
-		mp.RemoveTransaction(hash)
-		mp.logger.Debug("Removed transaction due to low gas price: %x", hash)
+
+	// Check for valid signature components
+	if tx.V == nil || tx.R == nil || tx.S == nil {
+		return fmt.Errorf("invalid signature components")
+	}
+
+	// Basic value validation
+	if tx.Value == nil {
+		return fmt.Errorf("value cannot be nil")
+	}
+
+	if tx.Value.Sign() < 0 {
+		return fmt.Errorf("negative value not allowed")
+	}
+
+	return nil
+}
+
+// removeLowPriorityTransaction removes the transaction with lowest priority
+func (mp *Mempool) removeLowPriorityTransaction() {
+	if len(mp.queue) == 0 {
+		return
+	}
+
+	// Find transaction with lowest gas price
+	var lowestTx *core.Transaction
+	lowestGasPrice := new(big.Int)
+
+	for _, tx := range mp.pending {
+		if lowestTx == nil || tx.GasPrice.Cmp(lowestGasPrice) < 0 {
+			lowestTx = tx
+			lowestGasPrice = tx.GasPrice
+		}
+	}
+
+	if lowestTx != nil {
+		mp.logger.Debug("Removing low priority transaction", 
+			"hash", lowestTx.Hash.Hex(), 
+			"gasPrice", lowestTx.GasPrice.String())
+		
+		// Remove without locking (already locked)
+		delete(mp.pending, lowestTx.Hash)
+		
+		// Remove from by-from index
+		fromTxs := mp.byFrom[lowestTx.From]
+		for i, fromTx := range fromTxs {
+			if fromTx.Hash == lowestTx.Hash {
+				mp.byFrom[lowestTx.From] = append(fromTxs[:i], fromTxs[i+1:]...)
+				break
+			}
+		}
+
+		if len(mp.byFrom[lowestTx.From]) == 0 {
+			delete(mp.byFrom, lowestTx.From)
+		}
+
+		mp.rebuildQueue()
 	}
 }
 
-// GetMinGasPrice returns the minimum gas price
-func (mp *Mempool) GetMinGasPrice() uint64 {
-	mp.mu.RLock()
-	defer mp.mu.RUnlock()
-	return mp.config.MinGasPrice
+// rebuildQueue rebuilds the priority queue
+func (mp *Mempool) rebuildQueue() {
+	mp.queue = make(TransactionQueue, 0, len(mp.pending))
+	
+	for _, tx := range mp.pending {
+		item := &TransactionPriorityItem{
+			Tx:       tx,
+			Priority: tx.GasPrice,
+		}
+		mp.queue = append(mp.queue, item)
+	}
+
+	heap.Init(&mp.queue)
 }
 
-// Clear removes all transactions from the mempool
-func (mp *Mempool) Clear() {
+// Clean removes expired transactions from mempool
+func (mp *Mempool) Clean() {
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
-	
-	count := len(mp.transactions)
-	mp.transactions = make(map[common.Hash]*core.Transaction)
-	mp.pending = make(map[common.Address][]*core.Transaction)
-	
-	mp.logger.Info("Mempool cleared: %d transactions removed", count)
+
+	// For now, we don't implement timeout-based cleaning
+	// This could be added based on transaction timestamp vs current time
+	mp.logger.Debug("Mempool cleanup completed", "size", len(mp.pending))
 }
 
 // GetStats returns mempool statistics
@@ -282,42 +350,57 @@ func (mp *Mempool) GetStats() map[string]interface{} {
 	mp.mu.RLock()
 	defer mp.mu.RUnlock()
 
-	return map[string]interface{}{
-		"current_size":    len(mp.transactions),
-		"max_size":        mp.config.MaxSize,
-		"min_gas_price":   mp.config.MinGasPrice,
-		"total_added":     mp.totalAdded,
-		"total_removed":   mp.totalRemoved,
-		"total_rejected":  mp.totalRejected,
-		"pending_senders": len(mp.pending),
+	stats := map[string]interface{}{
+		"pending_count":  len(mp.pending),
+		"queue_length":   len(mp.queue),
+		"unique_senders": len(mp.byFrom),
+		"max_size":       mp.config.MaxSize,
+		"min_gas_price":  mp.config.MinGasPrice,
 	}
+
+	// Calculate average gas price
+	if len(mp.pending) > 0 {
+		totalGasPrice := big.NewInt(0)
+		for _, tx := range mp.pending {
+			totalGasPrice.Add(totalGasPrice, tx.GasPrice)
+		}
+		avgGasPrice := new(big.Int).Div(totalGasPrice, big.NewInt(int64(len(mp.pending))))
+		stats["avg_gas_price"] = avgGasPrice.String()
+	}
+
+	return stats
 }
 
-// Cleanup removes old or invalid transactions periodically
-func (mp *Mempool) Cleanup() {
-	mp.mu.Lock()
-	defer mp.mu.Unlock()
+// GetTransactionHashes returns all transaction hashes in mempool
+func (mp *Mempool) GetTransactionHashes() []common.Hash {
+	mp.mu.RLock()
+	defer mp.mu.RUnlock()
 
-	// Remove transactions older than 1 hour (simple cleanup)
-	// In production, implement more sophisticated cleanup logic
-	cutoffTime := time.Now().Add(-1 * time.Hour).Unix()
-	var toRemove []common.Hash
-	
-	for hash, tx := range mp.transactions {
-		// Assume transaction has a timestamp field (would need to be added to Transaction struct)
-		// For now, just demonstrate the cleanup pattern
-		_ = cutoffTime
-		_ = tx
-		// if tx.Timestamp < cutoffTime {
-		//     toRemove = append(toRemove, hash)
-		// }
+	hashes := make([]common.Hash, 0, len(mp.pending))
+	for hash := range mp.pending {
+		hashes = append(hashes, hash)
 	}
-	
-	for _, hash := range toRemove {
-		if tx := mp.transactions[hash]; tx != nil {
-			delete(mp.transactions, hash)
-			mp.totalRemoved++
-			mp.logger.Debug("Cleaned up old transaction: %x", hash)
-		}
+
+	return hashes
+}
+
+// HasTransaction checks if a transaction exists in mempool
+func (mp *Mempool) HasTransaction(hash common.Hash) bool {
+	mp.mu.RLock()
+	defer mp.mu.RUnlock()
+
+	_, exists := mp.pending[hash]
+	return exists
+}
+
+// GetHighestGasPriceTransaction returns the transaction with highest gas price
+func (mp *Mempool) GetHighestGasPriceTransaction() *core.Transaction {
+	mp.mu.RLock()
+	defer mp.mu.RUnlock()
+
+	if len(mp.queue) == 0 {
+		return nil
 	}
+
+	return mp.queue[0].Tx
 }
